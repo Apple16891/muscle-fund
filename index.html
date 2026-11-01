@@ -412,12 +412,14 @@
   }
 
   /* ================================================================
-     SOUND ENGINE — Web Audio API, synthesised tones, no files
+     SOUND ENGINE — Web Audio, synthesized, no files
+     Master gain 0.90 · effective peaks −8 to −17 dBFS
      ================================================================ */
   var Sound = (function () {
     var ctx = null;
     var master = null;
     var enabled = true;
+    var unlocked = false;
 
     try { enabled = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (e) { enabled = true; }
 
@@ -432,102 +434,136 @@
         try {
           ctx = new AC();
           master = ctx.createGain();
-          master.gain.value = 0.20;
+          master.gain.value = 0.90;
           master.connect(ctx.destination);
+          console.log('[sound] context created · state:', ctx.state, '· sampleRate:', ctx.sampleRate);
         } catch (e) {
+          console.error('[sound] AudioContext creation failed:', e);
           ctx = null;
           master = null;
           return null;
         }
       }
-      if (ctx.state === 'suspended') {
-        try { ctx.resume(); } catch (e) {}
+      if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+        try {
+          var p = ctx.resume();
+          if (p && p.then) {
+            p.then(function () {
+              console.log('[sound] context resumed · state:', ctx.state);
+            }).catch(function (e) {
+              console.warn('[sound] resume rejected:', e);
+            });
+          }
+        } catch (e) {
+          console.warn('[sound] resume threw:', e);
+        }
       }
       return ctx;
     }
 
+    function unlock() {
+      if (unlocked) return;
+      unlocked = true;
+      var c = ensure();
+      if (!c) {
+        console.warn('[sound] unlock skipped — no context');
+        return;
+      }
+      try {
+        var buffer = c.createBuffer(1, 1, 22050);
+        var src = c.createBufferSource();
+        src.buffer = buffer;
+        src.connect(c.destination);
+        src.start(0);
+      } catch (e) {}
+      console.log('[sound] unlocked · state:', c.state);
+    }
+
     function tone(o) {
       var c = ensure();
-      if (!c) return;
+      if (!c) {
+        console.warn('[sound] tone skipped — no context (enabled=' + enabled + ')');
+        return;
+      }
       try {
         var t0 = c.currentTime + (o.delay || 0);
         var dur = o.dur || 0.14;
         var osc = c.createOscillator();
         var g = c.createGain();
-
         osc.type = o.type || 'sine';
         osc.frequency.setValueAtTime(o.freq, t0);
         if (o.glide) {
           osc.frequency.exponentialRampToValueAtTime(o.glide, t0 + dur);
         }
-
         var peak = (o.gain == null ? 0.4 : o.gain);
         var attack = o.attack || 0.006;
-
         g.gain.setValueAtTime(0.0001, t0);
         g.gain.exponentialRampToValueAtTime(peak, t0 + attack);
         g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-
         osc.connect(g);
         g.connect(master);
         osc.start(t0);
         osc.stop(t0 + dur + 0.04);
       } catch (e) {
-        /* audio must never break the app */
+        console.error('[sound] tone failed:', e);
       }
-    }
-
-    function tick() {
-      tone({ freq: 1250, type: 'sine', dur: 0.035, gain: 0.09, attack: 0.002 });
     }
 
     return {
       supported: supported,
       isEnabled: function () { return enabled; },
 
-      unlock: function () { ensure(); },
+      unlock: unlock,
 
       toggle: function () {
         var next = !enabled;
-        if (!next) tick();                 // audible confirmation before muting
+        if (!next) {
+          // About to mute — tick while still enabled
+          tone({ freq: 1250, type: 'sine', dur: 0.05, gain: 0.20, attack: 0.002 });
+        }
         enabled = next;
         try { localStorage.setItem(SOUND_KEY, enabled ? 'on' : 'off'); } catch (e) {}
-        if (enabled) { ensure(); tick(); } // audible confirmation when unmuting
+        if (enabled) {
+          ensure();
+          tone({ freq: 880,  type: 'sine', dur: 0.14, gain: 0.40 });
+          tone({ freq: 1320, type: 'sine', dur: 0.20, gain: 0.32, delay: 0.09 });
+        }
         return enabled;
       },
 
-      tick: tick,
+      tick: function () {
+        tone({ freq: 1250, type: 'sine', dur: 0.04, gain: 0.15, attack: 0.002 });
+      },
 
-      /* coin-like arpeggio — the "you got paid" sound */
       reward: function (milestone) {
-        tone({ freq: 880.00,  type: 'triangle', dur: 0.13, gain: 0.34 });
-        tone({ freq: 1174.66, type: 'triangle', dur: 0.16, gain: 0.30, delay: 0.065 });
-        tone({ freq: 1760.00, type: 'sine',     dur: 0.22, gain: 0.15, delay: 0.125 });
-
+        console.log('[sound] reward' + (milestone ? ' (milestone)' : ''));
+        tone({ freq: 880.00,  type: 'triangle', dur: 0.13, gain: 0.42 });
+        tone({ freq: 1174.66, type: 'triangle', dur: 0.16, gain: 0.38, delay: 0.065 });
+        tone({ freq: 1760.00, type: 'sine',     dur: 0.22, gain: 0.20, delay: 0.125 });
         if (milestone) {
-          tone({ freq: 1046.50, type: 'sine', dur: 0.26, gain: 0.20, delay: 0.22 });
-          tone({ freq: 1318.51, type: 'sine', dur: 0.28, gain: 0.18, delay: 0.32 });
-          tone({ freq: 1567.98, type: 'sine', dur: 0.30, gain: 0.16, delay: 0.42 });
-          tone({ freq: 2093.00, type: 'sine', dur: 0.46, gain: 0.13, delay: 0.52 });
+          tone({ freq: 1046.50, type: 'sine', dur: 0.26, gain: 0.30, delay: 0.22 });
+          tone({ freq: 1318.51, type: 'sine', dur: 0.28, gain: 0.27, delay: 0.32 });
+          tone({ freq: 1567.98, type: 'sine', dur: 0.30, gain: 0.24, delay: 0.42 });
+          tone({ freq: 2093.00, type: 'sine', dur: 0.46, gain: 0.21, delay: 0.52 });
         }
       },
 
-      /* descending pair — signals reversal */
       undo: function () {
-        tone({ freq: 523.25, type: 'sine', dur: 0.13, gain: 0.26 });
-        tone({ freq: 392.00, type: 'sine', dur: 0.18, gain: 0.22, delay: 0.08 });
+        console.log('[sound] undo');
+        tone({ freq: 523.25, type: 'sine', dur: 0.13, gain: 0.35 });
+        tone({ freq: 392.00, type: 'sine', dur: 0.18, gain: 0.30, delay: 0.08 });
       },
 
-      /* rising fifth — quiet confirmation */
       success: function () {
-        tone({ freq: 659.25, type: 'sine', dur: 0.10, gain: 0.24 });
-        tone({ freq: 987.77, type: 'sine', dur: 0.16, gain: 0.19, delay: 0.075 });
+        console.log('[sound] success');
+        tone({ freq: 659.25, type: 'sine', dur: 0.10, gain: 0.32 });
+        tone({ freq: 987.77, type: 'sine', dur: 0.16, gain: 0.26, delay: 0.075 });
       },
 
-      /* low double thud — never harsh */
       error: function () {
-        tone({ freq: 196.00, type: 'triangle', dur: 0.16, gain: 0.26 });
-        tone({ freq: 155.56, type: 'triangle', dur: 0.22, gain: 0.21, delay: 0.11 });
+        console.log('[sound] error');
+        tone({ freq: 196.00, type: 'triangle', dur: 0.16, gain: 0.35 });
+        tone({ freq: 155.56, type: 'triangle', dur: 0.22, gain: 0.29, delay: 0.11 });
       }
     };
   })();
@@ -535,20 +571,13 @@
   function updateSoundBtn() {
     var btn = $('soundBtn');
     if (!btn) return;
-
-    if (!Sound.supported()) {
-      btn.style.display = 'none';
-      return;
-    }
-
+    if (!Sound.supported()) { btn.style.display = 'none'; return; }
     var on = Sound.isEnabled();
     var label = on ? 'Sound on — click to mute' : 'Sound off — click to unmute';
-
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     btn.setAttribute('title', label);
     btn.setAttribute('aria-label', label);
     btn.classList.toggle('muted', !on);
-
     var iconOn = btn.querySelector('.icon-on');
     var iconOff = btn.querySelector('.icon-off');
     if (iconOn) iconOn.style.display = on ? '' : 'none';
@@ -585,14 +614,12 @@
            : raw.time;
     var timestamp = toTimestamp(ts);
     if (timestamp === null) return null;
-
     var rewardRaw = raw.reward != null ? raw.reward
                   : raw.amount != null ? raw.amount
                   : raw.value;
     var reward = toNumber(rewardRaw);
     if (reward === null) reward = REWARD;
     if (reward < 0 || reward > 10000000) return null;
-
     var id = (typeof raw.id === 'string' && raw.id) ? raw.id : makeId(timestamp);
     return { id: id, timestamp: timestamp, reward: Math.round(reward * 100) / 100 };
   }
@@ -659,7 +686,6 @@
     var days = {};
     for (var i = 0; i < workouts.length; i++) days[dayKey(workouts[i].timestamp)] = true;
     var keys = Object.keys(days).sort();
-
     var best = 1, run = 1;
     for (var k = 1; k < keys.length; k++) {
       if (prevDayKey(keys[k]) === keys[k - 1]) run++; else run = 1;
@@ -670,7 +696,6 @@
     if (days[today]) cursor = today;
     else if (days[prevDayKey(today)]) cursor = prevDayKey(today);
     else return { current: 0, best: best };
-
     var current = 0;
     while (days[cursor]) { current++; cursor = prevDayKey(cursor); }
     return { current: current, best: best };
@@ -743,11 +768,9 @@
   function renderStats() {
     var count = state.workouts.length;
     var total = totalEarned();
-
     $('statWorkouts').textContent = count;
     $('statWorkoutsSub').textContent = count === 1 ? 'session logged' : 'sessions logged';
     $('statEarned').textContent = money(total);
-
     var weeks = 1, avg = 0;
     if (count) {
       weeks = Math.max(1, (Date.now() - state.workouts[0].timestamp) / WEEK);
@@ -757,7 +780,6 @@
     $('statAvgSub').textContent = count
       ? (weeks < 1.5 ? 'over the first week' : 'over ' + Math.round(weeks) + ' weeks')
       : 'since first workout';
-
     var streak = computeStreak(state.workouts);
     $('statStreak').textContent = streak.current;
     $('statStreakSub').textContent = count
@@ -784,10 +806,8 @@
     var empty = $('historyEmpty');
     var undo  = $('undoBtn');
     var sub   = $('historySub');
-
     list.innerHTML = '';
     undo.disabled = state.workouts.length === 0;
-
     if (!state.workouts.length) {
       empty.style.display = '';
       sub.textContent = 'No transactions yet';
@@ -798,54 +818,34 @@
     sub.textContent = state.workouts.length + ' transaction' +
                       (state.workouts.length === 1 ? '' : 's') + ' · newest first';
 
-    var rows = [];
-    var balance = 0;
+    var rows = [], balance = 0;
     for (var i = 0; i < state.workouts.length; i++) {
       balance += state.workouts[i].reward;
       rows.push({ workout: state.workouts[i], balance: balance });
     }
-
     var grew = lastRenderedCount >= 0 && rows.length > lastRenderedCount;
     var frag = document.createDocumentFragment();
     var shown = 0;
-
     for (var j = rows.length - 1; j >= 0 && shown < MAX_ROWS; j--, shown++) {
       var li = document.createElement('li');
       li.className = 'tx';
       if (grew && shown === 0) li.classList.add('is-new');
-
-      var dot = document.createElement('div');
-      dot.className = 'tx-dot';
-      dot.textContent = '+';
-
-      var main = document.createElement('div');
-      main.className = 'tx-main';
-      var dateEl = document.createElement('div');
-      dateEl.className = 'tx-date';
+      var dot = document.createElement('div'); dot.className = 'tx-dot'; dot.textContent = '+';
+      var main = document.createElement('div'); main.className = 'tx-main';
+      var dateEl = document.createElement('div'); dateEl.className = 'tx-date';
       dateEl.textContent = dateLabel(rows[j].workout.timestamp);
-      var timeEl = document.createElement('div');
-      timeEl.className = 'tx-time';
+      var timeEl = document.createElement('div'); timeEl.className = 'tx-time';
       timeEl.textContent = timeLabel(rows[j].workout.timestamp);
-      main.appendChild(dateEl);
-      main.appendChild(timeEl);
-
-      var right = document.createElement('div');
-      right.className = 'tx-right';
-      var amount = document.createElement('span');
-      amount.className = 'tx-amount';
+      main.appendChild(dateEl); main.appendChild(timeEl);
+      var right = document.createElement('div'); right.className = 'tx-right';
+      var amount = document.createElement('span'); amount.className = 'tx-amount';
       amount.textContent = '+HK$' + fmt(rows[j].workout.reward);
-      var bal = document.createElement('span');
-      bal.className = 'tx-balance';
+      var bal = document.createElement('span'); bal.className = 'tx-balance';
       bal.textContent = 'Balance HK$' + fmt(rows[j].balance);
-      right.appendChild(amount);
-      right.appendChild(bal);
-
-      li.appendChild(dot);
-      li.appendChild(main);
-      li.appendChild(right);
+      right.appendChild(amount); right.appendChild(bal);
+      li.appendChild(dot); li.appendChild(main); li.appendChild(right);
       frag.appendChild(li);
     }
-
     list.appendChild(frag);
     lastRenderedCount = rows.length;
   }
@@ -853,11 +853,7 @@
   /* ---------- chart ---------- */
   function svgEl(name, attrs) {
     var el = document.createElementNS(SVG_NS, name);
-    if (attrs) {
-      for (var key in attrs) {
-        if (Object.prototype.hasOwnProperty.call(attrs, key)) el.setAttribute(key, attrs[key]);
-      }
-    }
+    if (attrs) for (var key in attrs) if (Object.prototype.hasOwnProperty.call(attrs, key)) el.setAttribute(key, attrs[key]);
     return el;
   }
   function compact(v) {
@@ -883,17 +879,13 @@
       byDay[key] = running;
     }
     order.sort();
-    return order.map(function (key) {
-      return { key: key, t: keyToNoon(key), v: byDay[key] };
-    });
+    return order.map(function (key) { return { key: key, t: keyToNoon(key), v: byDay[key] }; });
   }
   function filterSeries(points) {
     if (!chartRange || points.length < 2) return points;
     var cutoff = Date.now() - chartRange * DAY;
     var startIdx = -1;
-    for (var i = 0; i < points.length; i++) {
-      if (points[i].t >= cutoff) { startIdx = i; break; }
-    }
+    for (var i = 0; i < points.length; i++) if (points[i].t >= cutoff) { startIdx = i; break; }
     if (startIdx === -1) return points.slice(-2);
     if (startIdx > 0) startIdx -= 1;
     return points.slice(startIdx);
@@ -903,9 +895,7 @@
     var d = 'M ' + points[0].x.toFixed(2) + ' ' + points[0].y.toFixed(2);
     for (var i = 0; i < points.length - 1; i++) {
       var p0 = points[i - 1] || points[i];
-      var p1 = points[i];
-      var p2 = points[i + 1];
-      var p3 = points[i + 2] || p2;
+      var p1 = points[i], p2 = points[i + 1], p3 = points[i + 2] || p2;
       var tension = 0.16;
       var c1x = p1.x + (p2.x - p0.x) * tension;
       var c1y = clamp(p1.y + (p2.y - p0.y) * tension, minY, maxY);
@@ -919,101 +909,64 @@
   }
 
   function renderChart() {
-    var wrap  = $('chartWrap');
-    var svg   = $('chartSvg');
-    var empty = $('chartEmpty');
-    var tip   = $('chartTooltip');
+    var wrap = $('chartWrap'), svg = $('chartSvg'), empty = $('chartEmpty'), tip = $('chartTooltip');
     if (!wrap || !svg) return;
-
     var W = Math.max(260, Math.round(wrap.clientWidth || 600));
     var H = W < 520 ? 200 : 270;
-    var padL = W < 480 ? 40 : 52;
-    var padR = 12, padT = 16, padB = 24;
-    var innerW = W - padL - padR;
-    var innerH = H - padT - padB;
-
+    var padL = W < 480 ? 40 : 52, padR = 12, padT = 16, padB = 24;
+    var innerW = W - padL - padR, innerH = H - padT - padB;
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-    svg.setAttribute('width', W);
-    svg.setAttribute('height', H);
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
     while (svg.firstChild) svg.removeChild(svg.firstChild);
-
     var series = filterSeries(buildSeries());
-
-    if (!series.length) {
-      empty.style.display = '';
-      tip.style.opacity = 0;
-      return;
-    }
+    if (!series.length) { empty.style.display = ''; tip.style.opacity = 0; return; }
     empty.style.display = 'none';
-
     var maxV = 0;
     for (var i = 0; i < series.length; i++) if (series[i].v > maxV) maxV = series[i].v;
-
     var step = niceStep(maxV || REWARD);
     var maxY = Math.max(step, Math.ceil(maxV / step) * step);
     if (maxY <= 0) maxY = step;
-
-    var t0 = series[0].t;
-    var t1 = series[series.length - 1].t;
+    var t0 = series[0].t, t1 = series[series.length - 1].t;
     var single = series.length === 1 || t1 === t0;
-
     function X(t) { return single ? padL + innerW / 2 : padL + ((t - t0) / (t1 - t0)) * innerW; }
     function Y(v) { return padT + innerH - (v / maxY) * innerH; }
-
     var steps = Math.max(1, Math.round(maxY / step));
     for (var s = 0; s <= steps; s++) {
-      var value = s * step;
-      var y = Y(value);
+      var value = s * step, y = Y(value);
       svg.appendChild(svgEl('line', { x1: padL, y1: y, x2: W - padR, y2: y, 'class': 'grid' }));
       var label = svgEl('text', { x: padL - 8, y: y + 4, 'class': 'axis', 'text-anchor': 'end' });
-      label.textContent = compact(value);
-      svg.appendChild(label);
+      label.textContent = compact(value); svg.appendChild(label);
     }
-
     var defs = svgEl('defs');
     var grad = svgEl('linearGradient', { id: 'pfArea', x1: '0', y1: '0', x2: '0', y2: '1' });
-    grad.appendChild(svgEl('stop', { offset: '0%',   'stop-color': '#2ee08a', 'stop-opacity': '0.30' }));
-    grad.appendChild(svgEl('stop', { offset: '60%',  'stop-color': '#2ee08a', 'stop-opacity': '0.08' }));
+    grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#2ee08a', 'stop-opacity': '0.30' }));
+    grad.appendChild(svgEl('stop', { offset: '60%', 'stop-color': '#2ee08a', 'stop-opacity': '0.08' }));
     grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#2ee08a', 'stop-opacity': '0' }));
-    defs.appendChild(grad);
-    svg.appendChild(defs);
-
+    defs.appendChild(grad); svg.appendChild(defs);
     var pts = series.map(function (p) { return { x: X(p.t), y: Y(p.v), source: p }; });
     var baseY = padT + innerH;
-
     if (pts.length > 1) {
       var line = smoothPath(pts, padT, baseY);
       var area = line +
         ' L ' + pts[pts.length - 1].x.toFixed(2) + ' ' + baseY.toFixed(2) +
         ' L ' + pts[0].x.toFixed(2) + ' ' + baseY.toFixed(2) + ' Z';
       svg.appendChild(svgEl('path', { d: area, fill: 'url(#pfArea)', stroke: 'none' }));
-      svg.appendChild(svgEl('path', {
-        d: line, fill: 'none', stroke: '#2ee08a', 'stroke-width': 6,
-        'stroke-opacity': 0.16, 'stroke-linecap': 'round'
-      }));
-      svg.appendChild(svgEl('path', {
-        d: line, fill: 'none', stroke: '#2ee08a', 'stroke-width': 2.4,
-        'stroke-linecap': 'round', 'stroke-linejoin': 'round'
-      }));
+      svg.appendChild(svgEl('path', { d: line, fill: 'none', stroke: '#2ee08a', 'stroke-width': 6,
+        'stroke-opacity': 0.16, 'stroke-linecap': 'round' }));
+      svg.appendChild(svgEl('path', { d: line, fill: 'none', stroke: '#2ee08a', 'stroke-width': 2.4,
+        'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
     }
-
     var showDots = pts.length <= 40;
     for (var d2 = 0; d2 < pts.length; d2++) {
-      var pt = pts[d2];
-      var last = d2 === pts.length - 1;
+      var pt = pts[d2], last = d2 === pts.length - 1;
       if (!showDots && !last) continue;
-      if (last) {
-        svg.appendChild(svgEl('circle', { cx: pt.x, cy: pt.y, r: 9, fill: '#2ee08a', opacity: 0.14 }));
-      }
+      if (last) svg.appendChild(svgEl('circle', { cx: pt.x, cy: pt.y, r: 9, fill: '#2ee08a', opacity: 0.14 }));
       svg.appendChild(svgEl('circle', {
-        cx: pt.x, cy: pt.y,
-        r: last ? 4.4 : 2.6,
-        fill: last ? '#2ee08a' : '#0a1119',
-        stroke: '#2ee08a',
+        cx: pt.x, cy: pt.y, r: last ? 4.4 : 2.6,
+        fill: last ? '#2ee08a' : '#0a1119', stroke: '#2ee08a',
         'stroke-width': last ? 0 : 1.6
       }));
     }
-
     var labelCount = single ? 1 : (W < 420 ? 2 : W < 700 ? 3 : 4);
     var indices = [];
     if (single) indices.push(0);
@@ -1024,29 +977,20 @@
     }
     indices = indices.filter(function (v, i2, arr) { return arr.indexOf(v) === i2; });
     for (var xi = 0; xi < indices.length; xi++) {
-      var idx = indices[xi];
-      var p = pts[idx];
-      var anchor = 'middle';
+      var idx = indices[xi], p = pts[idx], anchor = 'middle';
       if (!single && xi === 0) anchor = 'start';
       if (!single && xi === indices.length - 1 && idx === pts.length - 1) anchor = 'end';
       var txt = svgEl('text', { x: p.x, y: H - 6, 'class': 'axis', 'text-anchor': anchor });
       txt.textContent = new Date(p.source.t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
       svg.appendChild(txt);
     }
-
     var focus = svgEl('g', { opacity: 0 });
     var guide = svgEl('line', { y1: padT, y2: baseY, stroke: 'rgba(255,255,255,0.20)', 'stroke-dasharray': '3 4' });
     var focusDot = svgEl('circle', { r: 5, fill: '#0a1119', stroke: '#2ee08a', 'stroke-width': 2 });
-    focus.appendChild(guide);
-    focus.appendChild(focusDot);
-    svg.appendChild(focus);
-
-    var hit = svgEl('rect', {
-      x: padL, y: padT, width: innerW, height: innerH,
-      fill: 'transparent', 'pointer-events': 'all'
-    });
+    focus.appendChild(guide); focus.appendChild(focusDot); svg.appendChild(focus);
+    var hit = svgEl('rect', { x: padL, y: padT, width: innerW, height: innerH,
+      fill: 'transparent', 'pointer-events': 'all' });
     svg.appendChild(hit);
-
     hit.addEventListener('pointermove', function (e) {
       var rect = svg.getBoundingClientRect();
       var scale = rect.width / W || 1;
@@ -1057,12 +1001,9 @@
         if (dist < bestDist) { bestDist = dist; best = k; }
       }
       var pt2 = pts[best];
-      guide.setAttribute('x1', pt2.x);
-      guide.setAttribute('x2', pt2.x);
-      focusDot.setAttribute('cx', pt2.x);
-      focusDot.setAttribute('cy', pt2.y);
+      guide.setAttribute('x1', pt2.x); guide.setAttribute('x2', pt2.x);
+      focusDot.setAttribute('cx', pt2.x); focusDot.setAttribute('cy', pt2.y);
       focus.setAttribute('opacity', 1);
-
       var wrapRect = wrap.getBoundingClientRect();
       var yScale = rect.height / H || 1;
       tip.innerHTML = '';
@@ -1072,15 +1013,13 @@
       });
       var strong = document.createElement('strong');
       strong.textContent = money(pt2.source.v);
-      tip.appendChild(span);
-      tip.appendChild(strong);
+      tip.appendChild(span); tip.appendChild(strong);
       tip.style.left = (rect.left - wrapRect.left + pt2.x * scale) + 'px';
       tip.style.top  = (rect.top  - wrapRect.top  + pt2.y * yScale) + 'px';
       tip.style.opacity = 1;
     });
     hit.addEventListener('pointerleave', function () {
-      tip.style.opacity = 0;
-      focus.setAttribute('opacity', 0);
+      tip.style.opacity = 0; focus.setAttribute('opacity', 0);
     });
   }
 
@@ -1089,19 +1028,13 @@
     var now = Date.now();
     state.workouts.push({ id: makeId(now), timestamp: now, reward: REWARD });
     state.workouts.sort(function (a, b) { return a.timestamp - b.timestamp; });
-    save();
-    render();
-
+    save(); render();
     var milestone = state.workouts.length > 0 && state.workouts.length % 10 === 0;
     Sound.reward(milestone);
     celebrate(ev);
-
-    toast(
-      milestone
-        ? 'Milestone · ' + state.workouts.length + ' workouts · +HK$' + REWARD
-        : 'Workout logged · +HK$' + REWARD,
-      'success'
-    );
+    toast(milestone
+      ? 'Milestone · ' + state.workouts.length + ' workouts · +HK$' + REWARD
+      : 'Workout logged · +HK$' + REWARD, 'success');
   }
 
   function celebrate(ev) {
@@ -1110,7 +1043,6 @@
     var rect = btn.getBoundingClientRect();
     var x = (ev && typeof ev.clientX === 'number' && ev.clientX) ? ev.clientX : rect.left + rect.width / 2;
     var y = (ev && typeof ev.clientY === 'number' && ev.clientY) ? ev.clientY : rect.top + rect.height / 2;
-
     var size = Math.max(rect.width, rect.height);
     var ripple = document.createElement('span');
     ripple.className = 'ripple';
@@ -1119,31 +1051,23 @@
     ripple.style.top  = (y - rect.top  - size / 2) + 'px';
     btn.appendChild(ripple);
     setTimeout(function () { if (ripple.parentNode) ripple.parentNode.removeChild(ripple); }, 700);
-
     var hero = $('heroCard');
-    hero.classList.remove('pulse');
-    void hero.offsetWidth;
-    hero.classList.add('pulse');
+    hero.classList.remove('pulse'); void hero.offsetWidth; hero.classList.add('pulse');
     setTimeout(function () { hero.classList.remove('pulse'); }, 900);
-
     if (reducedMotion()) return;
-
     var float = document.createElement('div');
     float.className = 'reward-float';
     float.textContent = '+ HK$' + REWARD;
-    float.style.left = x + 'px';
-    float.style.top  = y + 'px';
+    float.style.left = x + 'px'; float.style.top = y + 'px';
     document.body.appendChild(float);
     setTimeout(function () { if (float.parentNode) float.parentNode.removeChild(float); }, 1400);
-
     for (var s = 0; s < 9; s++) {
       (function (idx) {
         var spark = document.createElement('span');
         spark.className = 'spark';
         var angle = (Math.PI * 2 * idx) / 9 + Math.random() * 0.5;
         var dist = 46 + Math.random() * 54;
-        spark.style.left = x + 'px';
-        spark.style.top  = y + 'px';
+        spark.style.left = x + 'px'; spark.style.top = y + 'px';
         spark.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'px');
         spark.style.setProperty('--dy', (Math.sin(angle) * dist).toFixed(1) + 'px');
         document.body.appendChild(spark);
@@ -1156,8 +1080,7 @@
     if (!state.workouts.length) return;
     var removed = state.workouts.pop();
     lastRenderedCount = -1;
-    save();
-    render();
+    save(); render();
     Sound.undo();
     toast('Undid last workout · −HK$' + fmt(removed.reward), 'success');
   }
@@ -1166,22 +1089,14 @@
   function buildBackup() {
     var total = totalEarned();
     return {
-      app: 'MY FITNESS PORTFOLIO',
-      version: VERSION,
-      exportedAt: new Date().toISOString(),
-      rewardPerWorkout: REWARD,
+      app: 'MY FITNESS PORTFOLIO', version: VERSION,
+      exportedAt: new Date().toISOString(), rewardPerWorkout: REWARD,
       totals: { workouts: state.workouts.length, balance: total, earnings: total },
       workouts: state.workouts.map(function (w) {
-        return {
-          id: w.id,
-          timestamp: w.timestamp,
-          date: new Date(w.timestamp).toISOString(),
-          reward: w.reward
-        };
+        return { id: w.id, timestamp: w.timestamp, date: new Date(w.timestamp).toISOString(), reward: w.reward };
       })
     };
   }
-
   function exportBackup() {
     try {
       if (!state.workouts.length) {
@@ -1195,16 +1110,10 @@
       var d = new Date();
       var filename = 'muscle-fund-backup-' + d.getFullYear() + '-' +
                      pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + '.json';
-
       var a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      a.href = url; a.download = filename; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-
       Sound.success();
       toast('Backup downloaded · ' + filename, 'success');
     } catch (err) {
@@ -1221,173 +1130,18 @@
     input.value = '';
     input.click();
   }
-
   function handleFile(file) {
     if (!file) return;
     var reader = new FileReader();
-    reader.onerror = function () {
-      Sound.error();
-      toast('Could not read that file.', 'error');
-    };
-
+    reader.onerror = function () { Sound.error(); toast('Could not read that file.', 'error'); };
     reader.onload = function () {
       var data;
       try { data = JSON.parse(String(reader.result || '')); }
-      catch (e) {
-        Sound.error();
-        toast('That file is not valid JSON.', 'error');
-        return;
-      }
-
+      catch (e) { Sound.error(); toast('That file is not valid JSON.', 'error'); return; }
       if (data && data.version != null && Number(data.version) > VERSION) {
-        Sound.error();
-        toast('That backup is from a newer version of this app.', 'error');
-        return;
+        Sound.error(); toast('That backup is from a newer version of this app.', 'error'); return;
       }
-
       var source = extractWorkouts(data);
-      if (!source) {
-        Sound.error();
-        toast('No workout records found in that file.', 'error');
-        return;
-      }
-
+      if (!source) { Sound.error(); toast('No workout records found in that file.', 'error'); return; }
       var incoming = [];
-      for (var i = 0; i < source.length; i++) {
-        var w = normalizeWorkout(source[i]);
-        if (!w) {
-          Sound.error();
-          toast('Backup contains a damaged record — import cancelled.', 'error');
-          return;
-        }
-        incoming.push(w);
-      }
-      incoming.sort(function (a, b) { return a.timestamp - b.timestamp; });
-
-      confirmDialog({
-        title: 'Replace your portfolio?',
-        message: 'Your current ' + state.workouts.length + ' workout record' +
-                 (state.workouts.length === 1 ? '' : 's') + ' will be replaced by ' +
-                 incoming.length + ' from the backup. This cannot be undone.',
-        confirmLabel: 'Replace'
-      }).then(function (ok) {
-        if (!ok) {
-          Sound.tick();
-          toast('Import cancelled.', 'error');
-          return;
-        }
-        state.workouts = incoming;
-        lastRenderedCount = -1;
-        save();
-        render();
-        Sound.success();
-        toast('Portfolio restored · ' + incoming.length + ' workout' +
-              (incoming.length === 1 ? '' : 's'), 'success');
-      });
-    };
-
-    reader.readAsText(file);
-  }
-
-  /* ---------- reset ---------- */
-  function resetAll() {
-    if (!state.workouts.length) {
-      Sound.error();
-      toast('There is nothing to delete.', 'error');
-      return;
-    }
-    confirmDialog({
-      title: 'Delete all records?',
-      message: 'This erases all ' + state.workouts.length + ' workout records and your HK$' +
-               fmt(totalEarned()) + ' virtual balance from this browser.',
-      confirmLabel: 'Delete everything'
-    }).then(function (ok) {
-      if (!ok) return;
-      state.workouts = [];
-      lastRenderedCount = -1;
-      save();
-      render();
-      Sound.undo();
-      toast('All records deleted.', 'success');
-    });
-  }
-
-  /* ---------- wiring ---------- */
-  function bindEvents() {
-    $('addWorkout').addEventListener('click', addWorkout);
-    $('undoBtn').addEventListener('click', undoLast);
-    $('resetBtn').addEventListener('click', resetAll);
-    $('exportBtn').addEventListener('click', exportBackup);
-    $('exportBtn2').addEventListener('click', exportBackup);
-    $('importBtn').addEventListener('click', triggerImport);
-    $('importBtn2').addEventListener('click', triggerImport);
-
-    var soundBtn = $('soundBtn');
-    if (soundBtn) {
-      soundBtn.addEventListener('click', function () {
-        Sound.toggle();
-        updateSoundBtn();
-      });
-    }
-
-    $('importFile').addEventListener('change', function (e) {
-      handleFile(e.target.files && e.target.files[0]);
-    });
-
-    $('modalCancel').addEventListener('click', function () { closeModal(false); });
-    $('modalConfirm').addEventListener('click', function () { closeModal(true); });
-    $('modalOverlay').addEventListener('click', function (e) {
-      if (e.target === $('modalOverlay')) closeModal(false);
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && $('modalOverlay').classList.contains('open')) closeModal(false);
-    });
-
-    var tabs = document.querySelectorAll('.range-tabs button');
-    for (var i = 0; i < tabs.length; i++) {
-      tabs[i].addEventListener('click', function () {
-        for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
-        this.classList.add('active');
-        chartRange = parseInt(this.getAttribute('data-range'), 10) || 0;
-        Sound.tick();
-        renderChart();
-      });
-    }
-
-    window.addEventListener('resize', function () {
-      clearTimeout(chartResizeTimer);
-      chartResizeTimer = setTimeout(renderChart, 140);
-    });
-  }
-
-  /* ---------- boot ---------- */
-  function init() {
-    load();
-    bindEvents();
-    updateSoundBtn();
-    render();
-  }
-
-  function boot() {
-    try {
-      init();
-    } catch (err) {
-      console.error('[portfolio] boot failed', err);
-      var box = $('bootError');
-      if (box) {
-        box.style.display = 'block';
-        box.textContent = 'Startup error: ' + err.message +
-          ' — press F12 and check the Console tab.';
-      }
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
-})();
-</script>
-</body>
-</html>
+      for (var i =
