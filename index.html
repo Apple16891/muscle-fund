@@ -252,14 +252,14 @@
   .range-tabs button.active{background:rgba(46,224,138,0.16);color:var(--green);}
 
   .chart-wrap{position:relative;width:100%;margin-top:12px;}
-  .chart-wrap svg{display:block;width:100%;height:auto;}
+  .chart-wrap svg{display:block;width:100%;height:auto;touch-action:pan-y;}
   .grid{stroke:rgba(255,255,255,0.055);stroke-width:1;stroke-dasharray:3 5;}
   .axis{fill:var(--muted-2);font-size:11px;font-weight:600;letter-spacing:.02em;}
 
   .chart-empty{
     position:absolute;inset:0;display:grid;place-items:center;
     text-align:center;color:var(--muted);font-size:.8rem;
-    padding:26px;line-height:1.6;
+    padding:26px;line-height:1.6;pointer-events:none;
   }
 
   .tooltip{
@@ -287,8 +287,8 @@
     display:flex;align-items:center;gap:14px;
     padding:14px 2px;
     border-bottom:1px solid rgba(255,255,255,0.05);
-    animation:rowIn .38s cubic-bezier(.2,.8,.3,1) both;
   }
+  .tx.is-new{animation:rowIn .4s cubic-bezier(.2,.8,.3,1) both;}
   .tx:last-child{border-bottom:0;}
   @keyframes rowIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:none;}}
 
@@ -466,9 +466,8 @@
       </div>
     </div>
     <div class="topbar-actions">
-      <button class="ghost-btn" id="exportBtn" type="button">↓ Export</button>
-      <button class="ghost-btn" id="importBtn" type="button">↑ Import</button>
-      <input type="file" id="importFile" accept="application/json,.json" hidden />
+      <button class="ghost-btn" id="exportBtn" data-action="export" type="button">↓ Export</button>
+      <button class="ghost-btn" id="importBtn" data-action="import" type="button">↑ Import</button>
     </div>
   </header>
 
@@ -498,4 +497,852 @@
     <div class="card stat">
       <span class="stat-label">Completed Workouts</span>
       <span class="stat-value num" id="statWorkouts">0</span>
-      <span class="stat-sub">sessions logged</span
+      <span class="stat-sub" id="statWorkoutsSub">sessions logged</span>
+    </div>
+    <div class="card stat">
+      <span class="stat-label">Total Exercise Earnings</span>
+      <span class="stat-value num" id="statEarned">HK$ 0</span>
+      <span class="stat-sub">HK$50 per completed workout</span>
+    </div>
+    <div class="card stat">
+      <span class="stat-label">Average / Week</span>
+      <span class="stat-value num" id="statAvg">HK$ 0</span>
+      <span class="stat-sub" id="statAvgSub">since first workout</span>
+    </div>
+    <div class="card stat">
+      <span class="stat-label">Current Streak</span>
+      <span class="stat-value num" id="statStreak">0</span>
+      <span class="stat-sub" id="statStreakSub">consecutive days</span>
+    </div>
+  </section>
+
+  <!-- ================= CHART ================= -->
+  <section class="card chart-card">
+    <div class="card-head">
+      <div>
+        <h2>Portfolio Growth</h2>
+        <p class="card-sub" id="chartSub">Cumulative virtual wealth over time</p>
+      </div>
+      <div class="range-tabs" role="group" aria-label="Chart range">
+        <button type="button" data-range="30">30D</button>
+        <button type="button" data-range="90">3M</button>
+        <button type="button" data-range="0" class="active">ALL</button>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chartWrap">
+      <svg id="chartSvg" role="img" aria-label="Portfolio growth chart"></svg>
+      <div class="tooltip" id="chartTooltip"></div>
+      <div class="chart-empty" id="chartEmpty">Your growth curve appears after your first workout.</div>
+    </div>
+  </section>
+
+  <!-- ================= HISTORY ================= -->
+  <section class="card history-card">
+    <div class="card-head">
+      <div>
+        <h2>Transaction History</h2>
+        <p class="card-sub" id="historySub">No transactions yet</p>
+      </div>
+      <button class="ghost-btn" id="undoBtn" type="button" disabled>↺ Undo Last</button>
+    </div>
+    <ul class="history-list" id="historyList"></ul>
+    <div class="history-empty" id="historyEmpty">No transactions yet. Add a workout to open your portfolio.</div>
+  </section>
+
+  <!-- ================= DATA ================= -->
+  <section class="card data-card">
+    <div class="card-head">
+      <div>
+        <h2>Portfolio Data</h2>
+        <p class="card-sub">Stored locally in this browser. Export a backup before clearing site data.</p>
+      </div>
+    </div>
+    <div class="data-actions">
+      <button class="ghost-btn" data-action="export" type="button">↓ Export Backup (JSON)</button>
+      <button class="ghost-btn" data-action="import" type="button">↑ Import Backup</button>
+      <button class="danger-btn" id="resetBtn" type="button">Delete All Records</button>
+    </div>
+  </section>
+
+  <p class="footer">
+    MY FITNESS PORTFOLIO · Virtual money only — not real currency.<br>
+    All data is saved in your browser's localStorage.
+  </p>
+</div>
+
+<!-- Hidden file picker used by every Import button -->
+<input type="file" id="importFile" accept=".json,application/json" hidden />
+
+<!-- Confirm dialog -->
+<div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <h3 id="modalTitle">Are you sure?</h3>
+    <p id="modalMessage"></p>
+    <div class="modal-actions">
+      <button class="ghost-btn" id="modalCancel" type="button">Cancel</button>
+      <button class="danger-btn" id="modalConfirm" type="button">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+/* ================================================================
+   MY FITNESS PORTFOLIO — application logic
+   Vanilla JS only. No dependencies.
+   ================================================================ */
+(function () {
+  'use strict';
+
+  /* ---------------------------------------------------------------
+     CONFIG
+     --------------------------------------------------------------- */
+  var STORAGE_KEY  = 'muscleFundPortfolio_v1';
+  var LEGACY_KEYS  = ['muscleFundPortfolio', 'myFitnessPortfolio_v1', 'fitnessPortfolio_v1', 'fitnessPortfolio'];
+  var REWARD       = 50;          // HKD per completed workout
+  var VERSION      = 1;           // backup schema version
+  var DAY          = 86400000;
+  var WEEK         = 7 * DAY;
+  var MAX_ROWS     = 300;         // history rows rendered at once
+
+  /* ---------------------------------------------------------------
+     STATE  (the single source of truth, mirrored into localStorage)
+     state.workouts = [{ id, timestamp (ms), reward (number) }]  ascending
+     --------------------------------------------------------------- */
+  var state = { workouts: [] };
+  var chartRange = 0;             // 0 = ALL
+  var lastRenderedCount = -1;
+  var chartResizeTimer = null;
+
+  /* ---------------------------------------------------------------
+     SMALL HELPERS
+     --------------------------------------------------------------- */
+  function $(id) { return document.getElementById(id); }
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+  function money(n) { return 'HK$ ' + fmt(n); }
+  function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+  function makeId(t) { return 'w_' + t.toString(36) + '_' + Math.random().toString(36).slice(2, 7); }
+  function reducedMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function dayKey(ts) {
+    var d = new Date(ts);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function prevDayKey(key) {
+    var p = key.split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2], 12, 0, 0);
+    d.setDate(d.getDate() - 1);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function keyToNoon(key) {
+    var p = key.split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2], 12, 0, 0).getTime();
+  }
+
+  /* ---------------------------------------------------------------
+     NORMALISATION — tolerant of slightly different record shapes
+     --------------------------------------------------------------- */
+  function toTimestamp(value) {
+    if (value == null) return null;
+    if (typeof value === 'number' && isFinite(value)) {
+      if (value > 1e11) return Math.round(value);          // milliseconds
+      if (value > 1e8)  return Math.round(value * 1000);   // seconds
+      return null;
+    }
+    if (typeof value === 'string') {
+      var t = Date.parse(value);
+      return isNaN(t) ? null : t;
+    }
+    return null;
+  }
+
+  function toNumber(value) {
+    if (typeof value === 'number') return isFinite(value) ? value : null;
+    if (typeof value === 'string') {
+      var n = parseFloat(value.replace(/[^0-9.\-]/g, ''));
+      return isFinite(n) ? n : null;
+    }
+    return null;
+  }
+
+  function normalizeWorkout(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+
+    var ts = raw.timestamp != null ? raw.timestamp
+           : raw.at        != null ? raw.at
+           : raw.date      != null ? raw.date
+           : raw.time;
+    var timestamp = toTimestamp(ts);
+    if (timestamp === null) return null;
+
+    var rewardRaw = raw.reward != null ? raw.reward
+                  : raw.amount != null ? raw.amount
+                  : raw.value;
+    var reward = toNumber(rewardRaw);
+    if (reward === null) reward = REWARD;
+    if (reward < 0 || reward > 10000000) return null;
+
+    var id = (typeof raw.id === 'string' && raw.id) ? raw.id : makeId(timestamp);
+
+    return { id: id, timestamp: timestamp, reward: Math.round(reward * 100) / 100 };
+  }
+
+  function extractWorkouts(data) {
+    if (!data) return null;
+    if (Array.isArray(data)) return data;
+
+    var containers = [data, data.data, data.portfolio];
+    for (var i = 0; i < containers.length; i++) {
+      var c = containers[i];
+      if (!c || typeof c !== 'object') continue;
+      var candidate = c.workouts || c.history || c.records || c.transactions || c.entries;
+      if (Array.isArray(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  /* ---------------------------------------------------------------
+     STORAGE
+     --------------------------------------------------------------- */
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        version: VERSION,
+        savedAt: Date.now(),
+        workouts: state.workouts
+      }));
+      return true;
+    } catch (err) {
+      console.error('[portfolio] save failed', err);
+      toast('Could not save to browser storage — your data may not persist.', 'error');
+      return false;
+    }
+  }
+
+  function load() {
+    var keys = [STORAGE_KEY].concat(LEGACY_KEYS);
+    for (var i = 0; i < keys.length; i++) {
+      var raw;
+      try { raw = localStorage.getItem(keys[i]); } catch (e) { raw = null; }
+      if (!raw) continue;
+
+      try {
+        var parsed = JSON.parse(raw);
+        var source = extractWorkouts(parsed);
+        if (!source) continue;
+
+        var cleaned = [];
+        for (var j = 0; j < source.length; j++) {
+          var w = normalizeWorkout(source[j]);
+          if (w) cleaned.push(w);
+        }
+        cleaned.sort(function (a, b) { return a.timestamp - b.timestamp; });
+
+        state.workouts = cleaned;
+
+        if (keys[i] !== STORAGE_KEY) save();   // migrate legacy key
+        return;
+      } catch (err) {
+        console.warn('[portfolio] could not read storage key "' + keys[i] + '"', err);
+      }
+    }
+    state.workouts = [];
+  }
+
+  /* ---------------------------------------------------------------
+     DERIVED VALUES
+     --------------------------------------------------------------- */
+  function totalEarned() {
+    var sum = 0;
+    for (var i = 0; i < state.workouts.length; i++) sum += state.workouts[i].reward;
+    return sum;
+  }
+
+  function computeStreak(workouts) {
+    if (!workouts.length) return { current: 0, best: 0 };
+
+    var days = {};
+    for (var i = 0; i < workouts.length; i++) days[dayKey(workouts[i].timestamp)] = true;
+
+    var keys = Object.keys(days).sort();
+
+    var best = 1, run = 1;
+    for (var k = 1; k < keys.length; k++) {
+      if (prevDayKey(keys[k]) === keys[k - 1]) run++; else run = 1;
+      if (run > best) best = run;
+    }
+
+    var today = dayKey(Date.now());
+    var cursor;
+    if (days[today]) cursor = today;
+    else {
+      var yesterday = prevDayKey(today);
+      if (days[yesterday]) cursor = yesterday;
+      else return { current: 0, best: best };
+    }
+
+    var current = 0;
+    while (days[cursor]) {
+      current++;
+      cursor = prevDayKey(cursor);
+    }
+    return { current: current, best: best };
+  }
+
+  /* ---------------------------------------------------------------
+     TOASTS
+     --------------------------------------------------------------- */
+  function toast(message, type) {
+    var host = $('toasts');
+    if (!host) return;
+    var el = document.createElement('div');
+    el.className = 'toast ' + (type === 'error' ? 'error' : 'success');
+    el.textContent = message;
+    host.appendChild(el);
+
+    setTimeout(function () {
+      el.classList.add('out');
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 320);
+    }, 2600);
+  }
+
+  /* ---------------------------------------------------------------
+     CONFIRM DIALOG (promise based)
+     --------------------------------------------------------------- */
+  var modalResolve = null;
+
+  function confirmDialog(opts) {
+    return new Promise(function (resolve) {
+      var overlay = $('modalOverlay');
+      $('modalTitle').textContent = opts.title || 'Are you sure?';
+      $('modalMessage').textContent = opts.message || '';
+
+      var confirmBtn = $('modalConfirm');
+      confirmBtn.textContent = opts.confirmLabel || 'Confirm';
+      confirmBtn.className = (opts.danger === false) ? 'primary-btn' : 'danger-btn';
+
+      modalResolve = resolve;
+      overlay.classList.add('open');
+      setTimeout(function () { confirmBtn.focus(); }, 60);
+    });
+  }
+
+  function closeModal(result) {
+    var overlay = $('modalOverlay');
+    overlay.classList.remove('open');
+    if (modalResolve) {
+      var fn = modalResolve;
+      modalResolve = null;
+      fn(result);
+    }
+  }
+
+  /* ---------------------------------------------------------------
+     RENDERING
+     --------------------------------------------------------------- */
+  function render() {
+    renderHero();
+    renderStats();
+    renderChart();
+    renderHistory();
+  }
+
+  function renderHero() {
+    var count = state.workouts.length;
+    var total = totalEarned();
+
+    $('balanceValue').textContent = fmt(total);
+
+    var meta = $('heroMeta');
+    if (!count) {
+      meta.textContent = 'No workouts yet — your first one is worth HK$50.';
+    } else {
+      var last = state.workouts[count - 1].timestamp;
+      meta.textContent = count + ' workout' + (count === 1 ? '' : 's') +
+                         ' · last earned ' + fullDateTime(last);
+    }
+  }
+
+  function renderStats() {
+    var count = state.workouts.length;
+    var total = totalEarned();
+
+    $('statWorkouts').textContent = count;
+    $('statWorkoutsSub').textContent = count === 1 ? 'session logged' : 'sessions logged';
+
+    $('statEarned').textContent = money(total);
+
+    var weeks = 1, avg = 0;
+    if (count) {
+      weeks = Math.max(1, (Date.now() - state.workouts[0].timestamp) / WEEK);
+      avg = total / weeks;
+    }
+    $('statAvg').textContent = money(avg);
+    $('statAvgSub').textContent = count
+      ? (weeks < 1.5 ? 'over the first week' : 'over ' + Math.round(weeks) + ' weeks')
+      : 'since first workout';
+
+    var streak = computeStreak(state.workouts);
+    $('statStreak').textContent = streak.current;
+    $('statStreakSub').textContent = count
+      ? ('best run: ' + streak.best + ' day' + (streak.best === 1 ? '' : 's'))
+      : 'consecutive days';
+  }
+
+  function dateLabel(ts) {
+    var today = dayKey(Date.now());
+    var key = dayKey(ts);
+    if (key === today) return 'Today';
+    if (key === prevDayKey(today)) return 'Yesterday';
+
+    var d = new Date(ts);
+    var opts = { day: 'numeric', month: 'short' };
+    if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString('en-GB', opts);
+  }
+
+  function timeLabel(ts) {
+    return new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function fullDateTime(ts) {
+    var d = new Date(ts);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) +
+           ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderHistory() {
+    var list  = $('historyList');
+    var empty = $('historyEmpty');
+    var undo  = $('undoBtn');
+    var sub   = $('historySub');
+
+    list.innerHTML = '';
+    undo.disabled = state.workouts.length === 0;
+
+    if (!state.workouts.length) {
+      empty.style.display = '';
+      sub.textContent = 'No transactions yet';
+      lastRenderedCount = 0;
+      return;
+    }
+    empty.style.display = 'none';
+    sub.textContent = state.workouts.length + ' transaction' +
+                      (state.workouts.length === 1 ? '' : 's') + ' · newest first';
+
+    var rows = [];
+    var balance = 0;
+    for (var i = 0; i < state.workouts.length; i++) {
+      balance += state.workouts[i].reward;
+      rows.push({ workout: state.workouts[i], balance: balance });
+    }
+
+    var grew = lastRenderedCount >= 0 && rows.length > lastRenderedCount;
+    var frag = document.createDocumentFragment();
+    var shown = 0;
+
+    for (var j = rows.length - 1; j >= 0 && shown < MAX_ROWS; j--, shown++) {
+      var row = txRow(rows[j].workout, rows[j].balance);
+      if (grew && shown === 0) row.classList.add('is-new');
+      frag.appendChild(row);
+    }
+
+    list.appendChild(frag);
+    lastRenderedCount = rows.length;
+  }
+
+  function txRow(workout, balance) {
+    var li = document.createElement('li');
+    li.className = 'tx';
+
+    var dot = document.createElement('div');
+    dot.className = 'tx-dot';
+    dot.textContent = '+';
+
+    var main = document.createElement('div');
+    main.className = 'tx-main';
+
+    var dateEl = document.createElement('div');
+    dateEl.className = 'tx-date';
+    dateEl.textContent = dateLabel(workout.timestamp);
+
+    var timeEl = document.createElement('div');
+    timeEl.className = 'tx-time';
+    timeEl.textContent = timeLabel(workout.timestamp);
+
+    main.appendChild(dateEl);
+    main.appendChild(timeEl);
+
+    var right = document.createElement('div');
+    right.className = 'tx-right';
+
+    var amount = document.createElement('span');
+    amount.className = 'tx-amount';
+    amount.textContent = '+HK$' + fmt(workout.reward);
+
+    var bal = document.createElement('span');
+    bal.className = 'tx-balance';
+    bal.textContent = 'Balance HK$' + fmt(balance);
+
+    right.appendChild(amount);
+    right.appendChild(bal);
+
+    li.appendChild(dot);
+    li.appendChild(main);
+    li.appendChild(right);
+    return li;
+  }
+
+  /* ---------------------------------------------------------------
+     CHART
+     --------------------------------------------------------------- */
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function svgEl(name, attrs) {
+    var el = document.createElementNS(SVG_NS, name);
+    if (attrs) {
+      for (var key in attrs) {
+        if (Object.prototype.hasOwnProperty.call(attrs, key)) {
+          el.setAttribute(key, attrs[key]);
+        }
+      }
+    }
+    return el;
+  }
+
+  function compact(v) {
+    if (v >= 1000000) return (v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1) + 'M';
+    if (v >= 10000)   return Math.round(v / 1000) + 'k';
+    if (v >= 1000)    return (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'k';
+    return String(Math.round(v));
+  }
+
+  function niceStep(max) {
+    if (!isFinite(max) || max <= 0) return REWARD;
+    var raw = max / 4;
+    var pow = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+    var n = raw / pow;
+    var m = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+    return m * pow;
+  }
+
+  function buildSeries() {
+    var byDay = {};
+    var order = [];
+    var running = 0;
+
+    for (var i = 0; i < state.workouts.length; i++) {
+      running += state.workouts[i].reward;
+      var key = dayKey(state.workouts[i].timestamp);
+      if (!(key in byDay)) order.push(key);
+      byDay[key] = running;
+    }
+
+    order.sort();
+    return order.map(function (key) {
+      return { key: key, t: keyToNoon(key), v: byDay[key] };
+    });
+  }
+
+  function filterSeries(points) {
+    if (!chartRange || points.length < 2) return points;
+
+    var cutoff = Date.now() - chartRange * DAY;
+    var startIdx = -1;
+    for (var i = 0; i < points.length; i++) {
+      if (points[i].t >= cutoff) { startIdx = i; break; }
+    }
+    if (startIdx === -1) return points.slice(-2);   // everything older than the window
+    if (startIdx > 0) startIdx -= 1;                // anchor with the prior balance
+    return points.slice(startIdx);
+  }
+
+  function smoothPath(points, minY, maxY) {
+    if (points.length < 2) return '';
+
+    var d = 'M ' + points[0].x.toFixed(2) + ' ' + points[0].y.toFixed(2);
+
+    for (var i = 0; i < points.length - 1; i++) {
+      var p0 = points[i - 1] || points[i];
+      var p1 = points[i];
+      var p2 = points[i + 1];
+      var p3 = points[i + 2] || p2;
+      var tension = 0.16;
+
+      var c1x = p1.x + (p2.x - p0.x) * tension;
+      var c1y = clamp(p1.y + (p2.y - p0.y) * tension, minY, maxY);
+      var c2x = p2.x - (p3.x - p1.x) * tension;
+      var c2y = clamp(p2.y - (p3.y - p1.y) * tension, minY, maxY);
+
+      d += ' C ' + c1x.toFixed(2) + ' ' + c1y.toFixed(2) +
+           ', ' + c2x.toFixed(2) + ' ' + c2y.toFixed(2) +
+           ', ' + p2.x.toFixed(2) + ' ' + p2.y.toFixed(2);
+    }
+    return d;
+  }
+
+  function renderChart() {
+    var wrap  = $('chartWrap');
+    var svg   = $('chartSvg');
+    var empty = $('chartEmpty');
+    var tip   = $('chartTooltip');
+    if (!wrap || !svg) return;
+
+    var W = Math.max(260, Math.round(wrap.clientWidth || 600));
+    var H = W < 520 ? 200 : 270;
+    var padL = W < 480 ? 40 : 52;
+    var padR = 12;
+    var padT = 16;
+    var padB = 24;
+    var innerW = W - padL - padR;
+    var innerH = H - padT - padB;
+
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    var series = filterSeries(buildSeries());
+
+    if (!series.length) {
+      empty.style.display = '';
+      tip.style.opacity = 0;
+      return;
+    }
+    empty.style.display = 'none';
+
+    var maxV = 0;
+    for (var i = 0; i < series.length; i++) if (series[i].v > maxV) maxV = series[i].v;
+
+    var step = niceStep(maxV || REWARD);
+    var maxY = Math.max(step, Math.ceil(maxV / step) * step);
+    if (maxY <= 0) maxY = step;
+
+    var t0 = series[0].t;
+    var t1 = series[series.length - 1].t;
+    var single = series.length === 1 || t1 === t0;
+
+    function X(t) {
+      if (single) return padL + innerW / 2;
+      return padL + ((t - t0) / (t1 - t0)) * innerW;
+    }
+    function Y(v) {
+      return padT + innerH - (v / maxY) * innerH;
+    }
+
+    /* --- grid + y axis --- */
+    var steps = Math.max(1, Math.round(maxY / step));
+    for (var s = 0; s <= steps; s++) {
+      var value = s * step;
+      var y = Y(value);
+
+      svg.appendChild(svgEl('line', {
+        x1: padL, y1: y, x2: W - padR, y2: y, 'class': 'grid'
+      }));
+
+      var label = svgEl('text', {
+        x: padL - 8, y: y + 4, 'class': 'axis', 'text-anchor': 'end'
+      });
+      label.textContent = compact(value);
+      svg.appendChild(label);
+    }
+
+    /* --- gradient --- */
+    var defs = svgEl('defs');
+    var grad = svgEl('linearGradient', { id: 'pfArea', x1: '0', y1: '0', x2: '0', y2: '1' });
+    grad.appendChild(svgEl('stop', { offset: '0%',   'stop-color': '#2ee08a', 'stop-opacity': '0.30' }));
+    grad.appendChild(svgEl('stop', { offset: '60%',  'stop-color': '#2ee08a', 'stop-opacity': '0.08' }));
+    grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#2ee08a', 'stop-opacity': '0' }));
+    defs.appendChild(grad);
+    svg.appendChild(defs);
+
+    /* --- points --- */
+    var pts = series.map(function (p) {
+      return { x: X(p.t), y: Y(p.v), source: p };
+    });
+    var baseY = padT + innerH;
+
+    if (pts.length > 1) {
+      var line = smoothPath(pts, padT, baseY);
+
+      var area = line +
+        ' L ' + pts[pts.length - 1].x.toFixed(2) + ' ' + baseY.toFixed(2) +
+        ' L ' + pts[0].x.toFixed(2) + ' ' + baseY.toFixed(2) + ' Z';
+
+      svg.appendChild(svgEl('path', { d: area, fill: 'url(#pfArea)', stroke: 'none' }));
+      svg.appendChild(svgEl('path', {
+        d: line, fill: 'none', stroke: '#2ee08a', 'stroke-width': 6,
+        'stroke-opacity': 0.16, 'stroke-linecap': 'round'
+      }));
+      svg.appendChild(svgEl('path', {
+        d: line, fill: 'none', stroke: '#2ee08a', 'stroke-width': 2.4,
+        'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+      }));
+    }
+
+    /* --- dots --- */
+    var showDots = pts.length <= 40;
+    pts.forEach(function (pt, idx) {
+      var last = idx === pts.length - 1;
+      if (!showDots && !last) return;
+
+      if (last) {
+        svg.appendChild(svgEl('circle', {
+          cx: pt.x, cy: pt.y, r: 9, fill: '#2ee08a', opacity: 0.14
+        }));
+      }
+      svg.appendChild(svgEl('circle', {
+        cx: pt.x, cy: pt.y,
+        r: last ? 4.4 : 2.6,
+        fill: last ? '#2ee08a' : '#0a1119',
+        stroke: '#2ee08a',
+        'stroke-width': last ? 0 : 1.6
+      }));
+    });
+
+    /* --- x axis labels --- */
+    var labelCount = single ? 1 : (W < 420 ? 2 : W < 700 ? 3 : 4);
+    var indices = [];
+    if (single) {
+      indices.push(0);
+    } else {
+      var n = Math.min(labelCount, pts.length);
+      if (n === 1) indices.push(pts.length - 1);
+      else {
+        for (var j = 0; j < n; j++) {
+          indices.push(Math.round(j * (pts.length - 1) / (n - 1)));
+        }
+      }
+    }
+    indices = indices.filter(function (v, i2, arr) { return arr.indexOf(v) === i2; });
+
+    indices.forEach(function (idx, order) {
+      var pt = pts[idx];
+      var anchor = 'middle';
+      if (!single && order === 0) anchor = 'start';
+      if (!single && order === indices.length - 1 && idx === pts.length - 1) anchor = 'end';
+
+      var text = svgEl('text', {
+        x: pt.x, y: H - 6, 'class': 'axis', 'text-anchor': anchor
+      });
+      text.textContent = new Date(pt.source.t).toLocaleDateString('en-GB', {
+        day: 'numeric', month: 'short'
+      });
+      svg.appendChild(text);
+    });
+
+    /* --- hover layer --- */
+    var focus = svgEl('g', { opacity: 0 });
+    var guide = svgEl('line', {
+      y1: padT, y2: baseY, stroke: 'rgba(255,255,255,0.20)', 'stroke-dasharray': '3 4'
+    });
+    var focusDot = svgEl('circle', { r: 5, fill: '#0a1119', stroke: '#2ee08a', 'stroke-width': 2 });
+    focus.appendChild(guide);
+    focus.appendChild(focusDot);
+    svg.appendChild(focus);
+
+    var hit = svgEl('rect', {
+      x: padL, y: padT, width: innerW, height: innerH,
+      fill: 'transparent', 'pointer-events': 'all'
+    });
+    svg.appendChild(hit);
+
+    function showAt(clientX) {
+      var rect = svg.getBoundingClientRect();
+      var scale = rect.width / W || 1;
+      var localX = (clientX - rect.left) / scale;
+
+      var best = 0, bestDist = Infinity;
+      for (var k = 0; k < pts.length; k++) {
+        var dist = Math.abs(pts[k].x - localX);
+        if (dist < bestDist) { bestDist = dist; best = k; }
+      }
+      var pt = pts[best];
+
+      guide.setAttribute('x1', pt.x);
+      guide.setAttribute('x2', pt.x);
+      focusDot.setAttribute('cx', pt.x);
+      focusDot.setAttribute('cy', pt.y);
+      focus.setAttribute('opacity', 1);
+
+      var wrapRect = wrap.getBoundingClientRect();
+      var yScale = rect.height / H || 1;
+
+      tip.innerHTML = '';
+      var span = document.createElement('span');
+      span.textContent = new Date(pt.source.t).toLocaleDateString('en-GB', {
+        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+      });
+      var strong = document.createElement('strong');
+      strong.textContent = money(pt.source.v);
+      tip.appendChild(span);
+      tip.appendChild(strong);
+
+      tip.style.left = (rect.left - wrapRect.left + pt.x * scale) + 'px';
+      tip.style.top  = (rect.top  - wrapRect.top  + pt.y * yScale) + 'px';
+      tip.style.opacity = 1;
+    }
+
+    function hideTip() {
+      tip.style.opacity = 0;
+      focus.setAttribute('opacity', 0);
+    }
+
+    hit.addEventListener('pointermove', function (e) { showAt(e.clientX); });
+    hit.addEventListener('pointerdown', function (e) { showAt(e.clientX); });
+    hit.addEventListener('pointerleave', hideTip);
+    hit.addEventListener('pointercancel', hideTip);
+  }
+
+  /* ---------------------------------------------------------------
+     ADD WORKOUT
+     --------------------------------------------------------------- */
+  function addWorkout(ev) {
+    var now = Date.now();
+    state.workouts.push({ id: makeId(now), timestamp: now, reward: REWARD });
+    state.workouts.sort(function (a, b) { return a.timestamp - b.timestamp; });
+
+    save();
+    render();
+    celebrate(ev);
+    toast('Workout logged · +HK$' + REWARD, 'success');
+  }
+
+  function celebrate(ev) {
+    var btn = $('addWorkout');
+    if (!btn) return;
+
+    var rect = btn.getBoundingClientRect();
+    var x = (ev && typeof ev.clientX === 'number' && ev.clientX) ? ev.clientX : rect.left + rect.width / 2;
+    var y = (ev && typeof ev.clientY === 'number' && ev.clientY) ? ev.clientY : rect.top + rect.height / 2;
+
+    /* ripple */
+    var size = Math.max(rect.width, rect.height);
+    var ripple = document.createElement('span');
+    ripple.className = 'ripple';
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = (x - rect.left - size / 2) + 'px';
+    ripple.style.top  = (y - rect.top  - size / 2) + 'px';
+    btn.appendChild(ripple);
+    setTimeout(function () { if (ripple.parentNode) ripple.parentNode.removeChild(ripple); }, 700);
+
+    /* hero pulse */
+    var hero = $('heroCard');
+    hero.classList.remove('pulse');
+    void hero.offsetWidth;
+    hero.classList.add('pulse');
+    setTimeout(function () { hero.classList.remove('pulse'); }, 900);
+
+    if (reducedMotion()) return;
+
+    /* floating reward */
+    var float = document.createElement('div');
+    float.className = 'reward-float';
+    float.textContent = '+ HK$' + REWARD;
+    float.style.left = x + 'px';
+    float.style.top  =
