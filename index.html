@@ -45,7 +45,7 @@
   .brand-mark svg{width:22px;height:22px;}
   .brand h1{margin:0;font-size:0.94rem;font-weight:700;letter-spacing:0.17em;white-space:nowrap;}
   .brand p{margin:3px 0 0;font-size:0.7rem;color:var(--muted);letter-spacing:0.06em;}
-  .topbar-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .topbar-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 
   .ghost-btn{font:inherit;font-size:.78rem;font-weight:600;letter-spacing:.04em;color:var(--text);
     background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:11px;
@@ -54,6 +54,15 @@
   .ghost-btn:hover{background:rgba(255,255,255,0.09);border-color:var(--border-strong);}
   .ghost-btn:active{transform:scale(.97);}
   .ghost-btn:disabled{opacity:.38;cursor:not-allowed;transform:none;}
+
+  .icon-btn{width:42px;height:42px;flex:none;display:grid;place-items:center;color:var(--muted);
+    background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:11px;cursor:pointer;
+    transition:color .2s, background .2s, border-color .2s, transform .15s;
+    -webkit-tap-highlight-color:transparent;}
+  .icon-btn:hover{color:var(--text);background:rgba(255,255,255,0.09);border-color:var(--border-strong);}
+  .icon-btn:active{transform:scale(.94);}
+  .icon-btn[aria-pressed="true"]{color:var(--green);border-color:rgba(46,224,138,0.32);background:rgba(46,224,138,0.08);}
+  .icon-btn.muted{color:var(--muted-2);}
 
   .danger-btn{font:inherit;font-size:.78rem;font-weight:700;background:var(--red-soft);color:#ff9aa3;
     border:1px solid rgba(255,107,120,0.35);border-radius:11px;padding:12px 18px;cursor:pointer;
@@ -199,6 +208,7 @@
     .brand p{font-size:.65rem;}
     .brand-mark{width:38px;height:38px;border-radius:12px;}
     .topbar-actions .ghost-btn{padding:9px 13px;font-size:.72rem;}
+    .topbar-actions .icon-btn{width:38px;height:38px;}
     .add-btn{width:100%;justify-content:center;padding:17px 24px;}
     .tx{gap:11px;}
     .tx-dot{width:32px;height:32px;border-radius:10px;}
@@ -235,6 +245,19 @@
     <div class="topbar-actions">
       <button class="ghost-btn" id="exportBtn" type="button">↓ Export</button>
       <button class="ghost-btn" id="importBtn" type="button">↑ Import</button>
+      <button class="icon-btn" id="soundBtn" type="button" aria-pressed="true" title="Sound on" aria-label="Sound on — click to mute">
+        <svg class="icon-on" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 9v6h4l5 4V5L8 9H4z"/>
+          <path d="M16.5 8.5a5 5 0 0 1 0 7"/>
+          <path d="M19 6a9 9 0 0 1 0 12"/>
+        </svg>
+        <svg class="icon-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
+          <path d="M4 9v6h4l5 4V5L8 9H4z"/>
+          <path d="M17 9l5 6"/><path d="M22 9l-5 6"/>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -348,6 +371,7 @@
   'use strict';
 
   var STORAGE_KEY = 'muscleFundPortfolio_v1';
+  var SOUND_KEY   = 'muscleFundSound_v1';
   var LEGACY_KEYS = ['muscleFundPortfolio', 'myFitnessPortfolio_v1', 'fitnessPortfolio_v1', 'fitnessPortfolio'];
   var REWARD   = 50;
   var VERSION  = 1;
@@ -385,6 +409,150 @@
   function keyToNoon(key) {
     var p = key.split('-');
     return new Date(+p[0], +p[1] - 1, +p[2], 12, 0, 0).getTime();
+  }
+
+  /* ================================================================
+     SOUND ENGINE — Web Audio API, synthesised tones, no files
+     ================================================================ */
+  var Sound = (function () {
+    var ctx = null;
+    var master = null;
+    var enabled = true;
+
+    try { enabled = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (e) { enabled = true; }
+
+    function supported() {
+      return !!(window.AudioContext || window.webkitAudioContext);
+    }
+
+    function ensure() {
+      if (!enabled || !supported()) return null;
+      if (!ctx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        try {
+          ctx = new AC();
+          master = ctx.createGain();
+          master.gain.value = 0.20;
+          master.connect(ctx.destination);
+        } catch (e) {
+          ctx = null;
+          master = null;
+          return null;
+        }
+      }
+      if (ctx.state === 'suspended') {
+        try { ctx.resume(); } catch (e) {}
+      }
+      return ctx;
+    }
+
+    function tone(o) {
+      var c = ensure();
+      if (!c) return;
+      try {
+        var t0 = c.currentTime + (o.delay || 0);
+        var dur = o.dur || 0.14;
+        var osc = c.createOscillator();
+        var g = c.createGain();
+
+        osc.type = o.type || 'sine';
+        osc.frequency.setValueAtTime(o.freq, t0);
+        if (o.glide) {
+          osc.frequency.exponentialRampToValueAtTime(o.glide, t0 + dur);
+        }
+
+        var peak = (o.gain == null ? 0.4 : o.gain);
+        var attack = o.attack || 0.006;
+
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(peak, t0 + attack);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+        osc.connect(g);
+        g.connect(master);
+        osc.start(t0);
+        osc.stop(t0 + dur + 0.04);
+      } catch (e) {
+        /* audio must never break the app */
+      }
+    }
+
+    function tick() {
+      tone({ freq: 1250, type: 'sine', dur: 0.035, gain: 0.09, attack: 0.002 });
+    }
+
+    return {
+      supported: supported,
+      isEnabled: function () { return enabled; },
+
+      unlock: function () { ensure(); },
+
+      toggle: function () {
+        var next = !enabled;
+        if (!next) tick();                 // audible confirmation before muting
+        enabled = next;
+        try { localStorage.setItem(SOUND_KEY, enabled ? 'on' : 'off'); } catch (e) {}
+        if (enabled) { ensure(); tick(); } // audible confirmation when unmuting
+        return enabled;
+      },
+
+      tick: tick,
+
+      /* coin-like arpeggio — the "you got paid" sound */
+      reward: function (milestone) {
+        tone({ freq: 880.00,  type: 'triangle', dur: 0.13, gain: 0.34 });
+        tone({ freq: 1174.66, type: 'triangle', dur: 0.16, gain: 0.30, delay: 0.065 });
+        tone({ freq: 1760.00, type: 'sine',     dur: 0.22, gain: 0.15, delay: 0.125 });
+
+        if (milestone) {
+          tone({ freq: 1046.50, type: 'sine', dur: 0.26, gain: 0.20, delay: 0.22 });
+          tone({ freq: 1318.51, type: 'sine', dur: 0.28, gain: 0.18, delay: 0.32 });
+          tone({ freq: 1567.98, type: 'sine', dur: 0.30, gain: 0.16, delay: 0.42 });
+          tone({ freq: 2093.00, type: 'sine', dur: 0.46, gain: 0.13, delay: 0.52 });
+        }
+      },
+
+      /* descending pair — signals reversal */
+      undo: function () {
+        tone({ freq: 523.25, type: 'sine', dur: 0.13, gain: 0.26 });
+        tone({ freq: 392.00, type: 'sine', dur: 0.18, gain: 0.22, delay: 0.08 });
+      },
+
+      /* rising fifth — quiet confirmation */
+      success: function () {
+        tone({ freq: 659.25, type: 'sine', dur: 0.10, gain: 0.24 });
+        tone({ freq: 987.77, type: 'sine', dur: 0.16, gain: 0.19, delay: 0.075 });
+      },
+
+      /* low double thud — never harsh */
+      error: function () {
+        tone({ freq: 196.00, type: 'triangle', dur: 0.16, gain: 0.26 });
+        tone({ freq: 155.56, type: 'triangle', dur: 0.22, gain: 0.21, delay: 0.11 });
+      }
+    };
+  })();
+
+  function updateSoundBtn() {
+    var btn = $('soundBtn');
+    if (!btn) return;
+
+    if (!Sound.supported()) {
+      btn.style.display = 'none';
+      return;
+    }
+
+    var on = Sound.isEnabled();
+    var label = on ? 'Sound on — click to mute' : 'Sound off — click to unmute';
+
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.setAttribute('title', label);
+    btn.setAttribute('aria-label', label);
+    btn.classList.toggle('muted', !on);
+
+    var iconOn = btn.querySelector('.icon-on');
+    var iconOff = btn.querySelector('.icon-off');
+    if (iconOn) iconOn.style.display = on ? '' : 'none';
+    if (iconOff) iconOff.style.display = on ? 'none' : '';
   }
 
   /* ---------- normalisation ---------- */
@@ -923,8 +1091,17 @@
     state.workouts.sort(function (a, b) { return a.timestamp - b.timestamp; });
     save();
     render();
+
+    var milestone = state.workouts.length > 0 && state.workouts.length % 10 === 0;
+    Sound.reward(milestone);
     celebrate(ev);
-    toast('Workout logged · +HK$' + REWARD, 'success');
+
+    toast(
+      milestone
+        ? 'Milestone · ' + state.workouts.length + ' workouts · +HK$' + REWARD
+        : 'Workout logged · +HK$' + REWARD,
+      'success'
+    );
   }
 
   function celebrate(ev) {
@@ -981,6 +1158,7 @@
     lastRenderedCount = -1;
     save();
     render();
+    Sound.undo();
     toast('Undid last workout · −HK$' + fmt(removed.reward), 'success');
   }
 
@@ -1007,6 +1185,7 @@
   function exportBackup() {
     try {
       if (!state.workouts.length) {
+        Sound.error();
         toast('Nothing to export yet — add a workout first.', 'error');
         return;
       }
@@ -1026,9 +1205,11 @@
       document.body.removeChild(a);
       setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
 
+      Sound.success();
       toast('Backup downloaded · ' + filename, 'success');
     } catch (err) {
       console.error('[portfolio] export failed', err);
+      Sound.error();
       toast('Export failed — ' + err.message, 'error');
     }
   }
@@ -1044,25 +1225,41 @@
   function handleFile(file) {
     if (!file) return;
     var reader = new FileReader();
-    reader.onerror = function () { toast('Could not read that file.', 'error'); };
+    reader.onerror = function () {
+      Sound.error();
+      toast('Could not read that file.', 'error');
+    };
 
     reader.onload = function () {
       var data;
       try { data = JSON.parse(String(reader.result || '')); }
-      catch (e) { toast('That file is not valid JSON.', 'error'); return; }
+      catch (e) {
+        Sound.error();
+        toast('That file is not valid JSON.', 'error');
+        return;
+      }
 
       if (data && data.version != null && Number(data.version) > VERSION) {
+        Sound.error();
         toast('That backup is from a newer version of this app.', 'error');
         return;
       }
 
       var source = extractWorkouts(data);
-      if (!source) { toast('No workout records found in that file.', 'error'); return; }
+      if (!source) {
+        Sound.error();
+        toast('No workout records found in that file.', 'error');
+        return;
+      }
 
       var incoming = [];
       for (var i = 0; i < source.length; i++) {
         var w = normalizeWorkout(source[i]);
-        if (!w) { toast('Backup contains a damaged record — import cancelled.', 'error'); return; }
+        if (!w) {
+          Sound.error();
+          toast('Backup contains a damaged record — import cancelled.', 'error');
+          return;
+        }
         incoming.push(w);
       }
       incoming.sort(function (a, b) { return a.timestamp - b.timestamp; });
@@ -1074,11 +1271,16 @@
                  incoming.length + ' from the backup. This cannot be undone.',
         confirmLabel: 'Replace'
       }).then(function (ok) {
-        if (!ok) { toast('Import cancelled.', 'error'); return; }
+        if (!ok) {
+          Sound.tick();
+          toast('Import cancelled.', 'error');
+          return;
+        }
         state.workouts = incoming;
         lastRenderedCount = -1;
         save();
         render();
+        Sound.success();
         toast('Portfolio restored · ' + incoming.length + ' workout' +
               (incoming.length === 1 ? '' : 's'), 'success');
       });
@@ -1089,7 +1291,11 @@
 
   /* ---------- reset ---------- */
   function resetAll() {
-    if (!state.workouts.length) { toast('There is nothing to delete.', 'error'); return; }
+    if (!state.workouts.length) {
+      Sound.error();
+      toast('There is nothing to delete.', 'error');
+      return;
+    }
     confirmDialog({
       title: 'Delete all records?',
       message: 'This erases all ' + state.workouts.length + ' workout records and your HK$' +
@@ -1101,6 +1307,7 @@
       lastRenderedCount = -1;
       save();
       render();
+      Sound.undo();
       toast('All records deleted.', 'success');
     });
   }
@@ -1114,6 +1321,14 @@
     $('exportBtn2').addEventListener('click', exportBackup);
     $('importBtn').addEventListener('click', triggerImport);
     $('importBtn2').addEventListener('click', triggerImport);
+
+    var soundBtn = $('soundBtn');
+    if (soundBtn) {
+      soundBtn.addEventListener('click', function () {
+        Sound.toggle();
+        updateSoundBtn();
+      });
+    }
 
     $('importFile').addEventListener('change', function (e) {
       handleFile(e.target.files && e.target.files[0]);
@@ -1134,6 +1349,7 @@
         for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
         this.classList.add('active');
         chartRange = parseInt(this.getAttribute('data-range'), 10) || 0;
+        Sound.tick();
         renderChart();
       });
     }
@@ -1148,6 +1364,7 @@
   function init() {
     load();
     bindEvents();
+    updateSoundBtn();
     render();
   }
 
