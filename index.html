@@ -36,7 +36,6 @@
   button{font-family:inherit;}
   ::selection{background:rgba(46,224,138,0.28);}
   .app{max-width:1160px;margin:0 auto;padding:26px 20px 70px;}
-
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:26px;flex-wrap:wrap;}
   .brand{display:flex;align-items:center;gap:13px;min-width:0;}
   .brand-mark{width:44px;height:44px;flex:none;border-radius:14px;display:grid;place-items:center;
@@ -46,7 +45,6 @@
   .brand h1{margin:0;font-size:0.94rem;font-weight:700;letter-spacing:0.17em;white-space:nowrap;}
   .brand p{margin:3px 0 0;font-size:0.7rem;color:var(--muted);letter-spacing:0.06em;}
   .topbar-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-
   .ghost-btn{font:inherit;font-size:.78rem;font-weight:600;letter-spacing:.04em;color:var(--text);
     background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:11px;
     padding:11px 16px;cursor:pointer;transition:background .2s,border-color .2s,transform .15s;
@@ -54,7 +52,6 @@
   .ghost-btn:hover{background:rgba(255,255,255,0.09);border-color:var(--border-strong);}
   .ghost-btn:active{transform:scale(.97);}
   .ghost-btn:disabled{opacity:.38;cursor:not-allowed;transform:none;}
-
   .icon-btn{width:42px;height:42px;flex:none;display:grid;place-items:center;color:var(--muted);
     background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:11px;cursor:pointer;
     transition:color .2s, background .2s, border-color .2s, transform .15s;
@@ -63,17 +60,14 @@
   .icon-btn:active{transform:scale(.94);}
   .icon-btn[aria-pressed="true"]{color:var(--green);border-color:rgba(46,224,138,0.32);background:rgba(46,224,138,0.08);}
   .icon-btn.muted{color:var(--muted-2);}
-
   .danger-btn{font:inherit;font-size:.78rem;font-weight:700;background:var(--red-soft);color:#ff9aa3;
     border:1px solid rgba(255,107,120,0.35);border-radius:11px;padding:12px 18px;cursor:pointer;
     transition:background .2s,border-color .2s,transform .15s;}
   .danger-btn:hover{background:rgba(255,107,120,0.22);border-color:rgba(255,107,120,0.55);}
   .danger-btn:active{transform:scale(.97);}
-
   .card{background:linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.017));
     border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
-
   .hero{position:relative;padding:30px;margin-bottom:16px;overflow:hidden;}
   .hero::after{content:"";position:absolute;inset:0;pointer-events:none;
     background:radial-gradient(650px 260px at 0% 0%, rgba(46,224,138,0.14), transparent 70%);}
@@ -104,7 +98,6 @@
   @keyframes rippleOut{to{transform:scale(3.4);opacity:0;}}
   @keyframes cardPulse{0%{box-shadow:0 0 0 0 rgba(46,224,138,0.35), var(--shadow);}100%{box-shadow:0 0 0 22px rgba(46,224,138,0), var(--shadow);}}
   .hero.pulse{animation:cardPulse .85s ease-out;}
-
   .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px;}
   .stat{position:relative;padding:20px 20px 18px;overflow:hidden;display:flex;flex-direction:column;
     gap:9px;transition:transform .2s, border-color .2s;}
@@ -114,7 +107,6 @@
   .stat-label{font-size:.66rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);}
   .stat-value{font-size:clamp(1.45rem,4vw,1.95rem);font-weight:700;letter-spacing:-.025em;line-height:1.05;}
   .stat-sub{font-size:.71rem;color:var(--muted-2);line-height:1.4;}
-
   .chart-card{padding:22px 22px 12px;margin-bottom:16px;}
   .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;}
   .card-head h2{margin:0;font-size:.95rem;font-weight:700;letter-spacing:.015em;}
@@ -136,7 +128,6 @@
     padding:8px 12px;font-size:.7rem;color:var(--muted);white-space:nowrap;
     box-shadow:0 16px 34px -14px #000;transition:opacity .15s ease;}
   .tooltip strong{display:block;margin-top:2px;font-size:.85rem;color:var(--green);font-variant-numeric:tabular-nums;}
-
   .history-card{padding:22px;margin-bottom:16px;}
   .history-list{list-style:none;margin:10px 0 0;padding:0;}
   .tx{display:flex;align-items:center;gap:14px;padding:14px 2px;border-bottom:1px solid rgba(255,255,255,0.05);}
@@ -153,11 +144,9 @@
   .tx-amount{display:block;font-size:.9rem;font-weight:700;color:var(--green);font-variant-numeric:tabular-nums;}
   .tx-balance{display:block;margin-top:2px;font-size:.68rem;color:var(--muted-2);font-variant-numeric:tabular-nums;}
   .history-empty{padding:30px 10px;text-align:center;color:var(--muted-2);font-size:.8rem;}
-
   .data-card{padding:22px;}
   .data-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}
   .footer{margin-top:26px;text-align:center;font-size:.7rem;color:var(--muted-2);line-height:1.7;}
-
   .modal-overlay{position:fixed;inset:0;z-index:60;padding:20px;display:grid;place-items:center;
     background:rgba(3,6,10,0.76);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
     opacity:0;pointer-events:none;transition:opacity .22s ease;}
@@ -169,7 +158,6 @@
   .modal h3{margin:0 0 10px;font-size:1.02rem;font-weight:700;}
   .modal p{margin:0;font-size:.82rem;line-height:1.65;color:var(--muted);}
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;flex-wrap:wrap;}
-
   .toasts{position:fixed;left:50%;bottom:26px;z-index:80;transform:translateX(-50%);
     display:flex;flex-direction:column;gap:8px;align-items:center;width:max-content;
     max-width:calc(100vw - 32px);pointer-events:none;}
@@ -181,7 +169,6 @@
   .toast.out{animation:toastOut .28s ease forwards;}
   @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(.96);}to{opacity:1;transform:none;}}
   @keyframes toastOut{to{opacity:0;transform:translateY(10px) scale(.97);}}
-
   .reward-float{position:fixed;z-index:90;pointer-events:none;font-size:1.12rem;font-weight:800;
     color:var(--green);text-shadow:0 0 24px rgba(46,224,138,0.8);transform:translate(-50%,-50%);
     animation:rewardFloat 1.35s cubic-bezier(.2,.7,.3,1) forwards;}
@@ -193,11 +180,9 @@
     animation:sparkFly .95s ease-out forwards;}
   @keyframes sparkFly{from{opacity:1;transform:translate(-50%,-50%) scale(1);}
     to{opacity:0;transform:translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.15);}}
-
   #bootError{display:none;margin:0 0 18px;padding:14px 16px;border-radius:14px;
     background:rgba(255,107,120,0.12);border:1px solid rgba(255,107,120,0.45);
     color:#ffc6cb;font-size:.8rem;line-height:1.6;}
-
   @media (max-width:900px){.stats{grid-template-columns:repeat(2,minmax(0,1fr));}}
   @media (max-width:640px){
     .app{padding:18px 14px 60px;}
@@ -226,7 +211,6 @@
 <body>
 
 <div class="app">
-
   <div id="bootError"></div>
 
   <header class="topbar">
@@ -412,20 +396,22 @@
   }
 
   /* ================================================================
-     SOUND ENGINE — Web Audio, synthesized, no files
-     Master gain 0.90 · effective peaks −8 to −17 dBFS
+     SOUND ENGINE
+     Layered reward system — every layer resolves in A major.
+       Base       : A5 → D6 → A6 (coin arpeggio)
+       Every 2nd  : + C#7, E7 harmonic shimmer
+       Every 5th  : + A-major triad swell (A4 → C#5 → E5 → A5 → C#6)
+       Every 10th : + full resonant pad — octave bass stack, chorus
+                    detune, long-tail bell cascade up to A6
+       Random     : ~20 % chance of an ascending sparkle cascade
      ================================================================ */
   var Sound = (function () {
-    var ctx = null;
-    var master = null;
+    var ctx = null, master = null;
     var enabled = true;
     var unlocked = false;
-
     try { enabled = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (e) { enabled = true; }
 
-    function supported() {
-      return !!(window.AudioContext || window.webkitAudioContext);
-    }
+    function supported() { return !!(window.AudioContext || window.webkitAudioContext); }
 
     function ensure() {
       if (!enabled || !supported()) return null;
@@ -436,27 +422,10 @@
           master = ctx.createGain();
           master.gain.value = 0.90;
           master.connect(ctx.destination);
-          console.log('[sound] context created · state:', ctx.state, '· sampleRate:', ctx.sampleRate);
-        } catch (e) {
-          console.error('[sound] AudioContext creation failed:', e);
-          ctx = null;
-          master = null;
-          return null;
-        }
+        } catch (e) { ctx = null; master = null; return null; }
       }
       if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
-        try {
-          var p = ctx.resume();
-          if (p && p.then) {
-            p.then(function () {
-              console.log('[sound] context resumed · state:', ctx.state);
-            }).catch(function (e) {
-              console.warn('[sound] resume rejected:', e);
-            });
-          }
-        } catch (e) {
-          console.warn('[sound] resume threw:', e);
-        }
+        try { var p = ctx.resume(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
       }
       return ctx;
     }
@@ -465,62 +434,113 @@
       if (unlocked) return;
       unlocked = true;
       var c = ensure();
-      if (!c) {
-        console.warn('[sound] unlock skipped — no context');
-        return;
-      }
+      if (!c) return;
       try {
-        var buffer = c.createBuffer(1, 1, 22050);
-        var src = c.createBufferSource();
-        src.buffer = buffer;
-        src.connect(c.destination);
-        src.start(0);
+        var b = c.createBuffer(1, 1, 22050);
+        var s = c.createBufferSource();
+        s.buffer = b; s.connect(c.destination); s.start(0);
       } catch (e) {}
-      console.log('[sound] unlocked · state:', c.state);
     }
 
     function tone(o) {
       var c = ensure();
-      if (!c) {
-        console.warn('[sound] tone skipped — no context (enabled=' + enabled + ')');
-        return;
-      }
+      if (!c) return;
       try {
         var t0 = c.currentTime + (o.delay || 0);
         var dur = o.dur || 0.14;
         var osc = c.createOscillator();
         var g = c.createGain();
+
         osc.type = o.type || 'sine';
         osc.frequency.setValueAtTime(o.freq, t0);
-        if (o.glide) {
-          osc.frequency.exponentialRampToValueAtTime(o.glide, t0 + dur);
-        }
+        if (o.detune) osc.detune.setValueAtTime(o.detune, t0);
+        if (o.glide) osc.frequency.exponentialRampToValueAtTime(o.glide, t0 + dur);
+
         var peak = (o.gain == null ? 0.4 : o.gain);
         var attack = o.attack || 0.006;
+
         g.gain.setValueAtTime(0.0001, t0);
         g.gain.exponentialRampToValueAtTime(peak, t0 + attack);
         g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
         osc.connect(g);
         g.connect(master);
         osc.start(t0);
-        osc.stop(t0 + dur + 0.04);
-      } catch (e) {
-        console.error('[sound] tone failed:', e);
+        osc.stop(t0 + dur + 0.05);
+      } catch (e) { /* never break the app for a sound */ }
+    }
+
+    /* ---- LAYER 0 · always ---- */
+    function baseReward() {
+      tone({ freq: 880.00,  type: 'triangle', dur: 0.13, gain: 0.42 });
+      tone({ freq: 1174.66, type: 'triangle', dur: 0.16, gain: 0.38, delay: 0.065 });
+      tone({ freq: 1760.00, type: 'sine',     dur: 0.22, gain: 0.20, delay: 0.125 });
+    }
+
+    /* ---- LAYER 1 · every 2nd ---- */
+    function harmonicAccent() {
+      tone({ freq: 2217.46, type: 'sine', dur: 0.36, gain: 0.15, delay: 0.20, attack: 0.015 });
+      tone({ freq: 2637.02, type: 'sine', dur: 0.44, gain: 0.11, delay: 0.28, attack: 0.020 });
+    }
+
+    /* ---- LAYER 2 · every 5th ---- */
+    function richChord() {
+      tone({ freq: 440.00,  type: 'triangle', dur: 0.50, gain: 0.16, delay: 0.15, attack: 0.030 });
+      tone({ freq: 554.37,  type: 'triangle', dur: 0.46, gain: 0.19, delay: 0.20 });
+      tone({ freq: 659.25,  type: 'triangle', dur: 0.52, gain: 0.17, delay: 0.24 });
+      tone({ freq: 880.00,  type: 'sine',     dur: 0.58, gain: 0.15, delay: 0.28 });
+      tone({ freq: 1108.73, type: 'sine',     dur: 0.72, gain: 0.13, delay: 0.36 });
+    }
+
+    /* ---- LAYER 3 · every 10th · full resonant ---- */
+    function fullResonant() {
+      // Octave bass stack — the deep foundation
+      tone({ freq: 110.00, type: 'triangle', dur: 1.40, gain: 0.15, delay: 0.08, attack: 0.040 });
+      tone({ freq: 220.00, type: 'triangle', dur: 1.20, gain: 0.10, delay: 0.12, attack: 0.030 });
+
+      // Mid harmony — A major spread
+      tone({ freq: 277.18, type: 'triangle', dur: 0.90, gain: 0.06, delay: 0.20 });
+      tone({ freq: 329.63, type: 'triangle', dur: 0.90, gain: 0.06, delay: 0.24 });
+      tone({ freq: 440.00, type: 'sine',     dur: 1.00, gain: 0.08, delay: 0.28 });
+      tone({ freq: 554.37, type: 'sine',     dur: 1.00, gain: 0.07, delay: 0.32 });
+      tone({ freq: 659.25, type: 'sine',     dur: 1.00, gain: 0.07, delay: 0.36 });
+
+      // Chorus detune — the "resonant" shimmer
+      tone({ freq: 554.37, type: 'sine', dur: 1.00, gain: 0.035, delay: 0.32, detune:  8 });
+      tone({ freq: 659.25, type: 'sine', dur: 1.00, gain: 0.035, delay: 0.36, detune: -8 });
+
+      // Bell cascade — long tails ring over each other
+      tone({ freq:  880.00, type: 'sine', dur: 1.30, gain: 0.060, delay: 0.45 });
+      tone({ freq: 1108.73, type: 'sine', dur: 1.50, gain: 0.050, delay: 0.55 });
+      tone({ freq: 1318.51, type: 'sine', dur: 1.70, gain: 0.045, delay: 0.65 });
+      tone({ freq: 1760.00, type: 'sine', dur: 1.90, gain: 0.040, delay: 0.75 });
+    }
+
+    /* ---- RANDOM · sparkle cascade ---- */
+    function randomSparkle() {
+      var notes = [1760.00, 2217.46, 2637.02, 3520.00]; // A6, C#7, E7, A7
+      var start = Math.floor(Math.random() * 2);
+      var count = 3 + Math.floor(Math.random() * 2);
+      for (var i = 0; i < count && (start + i) < notes.length; i++) {
+        tone({
+          freq: notes[start + i],
+          type: 'sine',
+          dur: 0.15 + Math.random() * 0.22,
+          gain: 0.06 + Math.random() * 0.04,
+          delay: 0.30 + i * 0.055,
+          attack: 0.006
+        });
       }
     }
 
     return {
       supported: supported,
       isEnabled: function () { return enabled; },
-
       unlock: unlock,
 
       toggle: function () {
         var next = !enabled;
-        if (!next) {
-          // About to mute — tick while still enabled
-          tone({ freq: 1250, type: 'sine', dur: 0.05, gain: 0.20, attack: 0.002 });
-        }
+        if (!next) tone({ freq: 1250, type: 'sine', dur: 0.05, gain: 0.20, attack: 0.002 });
         enabled = next;
         try { localStorage.setItem(SOUND_KEY, enabled ? 'on' : 'off'); } catch (e) {}
         if (enabled) {
@@ -535,33 +555,35 @@
         tone({ freq: 1250, type: 'sine', dur: 0.04, gain: 0.15, attack: 0.002 });
       },
 
-      reward: function (milestone) {
-        console.log('[sound] reward' + (milestone ? ' (milestone)' : ''));
-        tone({ freq: 880.00,  type: 'triangle', dur: 0.13, gain: 0.42 });
-        tone({ freq: 1174.66, type: 'triangle', dur: 0.16, gain: 0.38, delay: 0.065 });
-        tone({ freq: 1760.00, type: 'sine',     dur: 0.22, gain: 0.20, delay: 0.125 });
-        if (milestone) {
-          tone({ freq: 1046.50, type: 'sine', dur: 0.26, gain: 0.30, delay: 0.22 });
-          tone({ freq: 1318.51, type: 'sine', dur: 0.28, gain: 0.27, delay: 0.32 });
-          tone({ freq: 1567.98, type: 'sine', dur: 0.30, gain: 0.24, delay: 0.42 });
-          tone({ freq: 2093.00, type: 'sine', dur: 0.46, gain: 0.21, delay: 0.52 });
+      /* Main entry — n is the workout count AFTER this addition */
+      reward: function (n) {
+        baseReward();
+        var isTenth  = n > 0 && n % 10 === 0;
+        var isFifth  = n > 0 && n % 5 === 0;
+        var isSecond = n > 0 && n % 2 === 0;
+
+        if (isTenth) {
+          fullResonant();
+        } else {
+          if (isFifth) richChord();
+          else if (isSecond) harmonicAccent();
+          if (Math.random() < 0.20) randomSparkle();
         }
+        console.log('[sound] reward · n=' + n +
+                    (isTenth ? ' · resonant' : isFifth ? ' · chord' : isSecond ? ' · accent' : ''));
       },
 
       undo: function () {
-        console.log('[sound] undo');
         tone({ freq: 523.25, type: 'sine', dur: 0.13, gain: 0.35 });
         tone({ freq: 392.00, type: 'sine', dur: 0.18, gain: 0.30, delay: 0.08 });
       },
 
       success: function () {
-        console.log('[sound] success');
         tone({ freq: 659.25, type: 'sine', dur: 0.10, gain: 0.32 });
         tone({ freq: 987.77, type: 'sine', dur: 0.16, gain: 0.26, delay: 0.075 });
       },
 
       error: function () {
-        console.log('[sound] error');
         tone({ freq: 196.00, type: 'triangle', dur: 0.16, gain: 0.35 });
         tone({ freq: 155.56, type: 'triangle', dur: 0.22, gain: 0.29, delay: 0.11 });
       }
@@ -1028,21 +1050,32 @@
     var now = Date.now();
     state.workouts.push({ id: makeId(now), timestamp: now, reward: REWARD });
     state.workouts.sort(function (a, b) { return a.timestamp - b.timestamp; });
-    save(); render();
-    var milestone = state.workouts.length > 0 && state.workouts.length % 10 === 0;
-    Sound.reward(milestone);
-    celebrate(ev);
-    toast(milestone
-      ? 'Milestone · ' + state.workouts.length + ' workouts · +HK$' + REWARD
-      : 'Workout logged · +HK$' + REWARD, 'success');
+    save();
+    render();
+
+    var n = state.workouts.length;
+    var isTenth  = n > 0 && n % 10 === 0;
+    var isFifth  = n > 0 && n % 5 === 0;
+    var isSecond = n > 0 && n % 2 === 0;
+
+    Sound.reward(n);
+    celebrate(ev, isTenth);
+
+    var msg;
+    if (isTenth)      msg = 'Milestone · ' + n + ' workouts · +HK$' + REWARD;
+    else if (isFifth) msg = 'Every 5th workout · +HK$' + REWARD;
+    else if (isSecond) msg = 'Every 2nd workout · +HK$' + REWARD;
+    else              msg = 'Workout logged · +HK$' + REWARD;
+    toast(msg, 'success');
   }
 
-  function celebrate(ev) {
+  function celebrate(ev, big) {
     var btn = $('addWorkout');
     if (!btn) return;
     var rect = btn.getBoundingClientRect();
     var x = (ev && typeof ev.clientX === 'number' && ev.clientX) ? ev.clientX : rect.left + rect.width / 2;
     var y = (ev && typeof ev.clientY === 'number' && ev.clientY) ? ev.clientY : rect.top + rect.height / 2;
+
     var size = Math.max(rect.width, rect.height);
     var ripple = document.createElement('span');
     ripple.className = 'ripple';
@@ -1051,23 +1084,33 @@
     ripple.style.top  = (y - rect.top  - size / 2) + 'px';
     btn.appendChild(ripple);
     setTimeout(function () { if (ripple.parentNode) ripple.parentNode.removeChild(ripple); }, 700);
+
     var hero = $('heroCard');
-    hero.classList.remove('pulse'); void hero.offsetWidth; hero.classList.add('pulse');
+    hero.classList.remove('pulse');
+    void hero.offsetWidth;
+    hero.classList.add('pulse');
     setTimeout(function () { hero.classList.remove('pulse'); }, 900);
+
     if (reducedMotion()) return;
+
     var float = document.createElement('div');
     float.className = 'reward-float';
     float.textContent = '+ HK$' + REWARD;
-    float.style.left = x + 'px'; float.style.top = y + 'px';
+    float.style.left = x + 'px';
+    float.style.top  = y + 'px';
     document.body.appendChild(float);
     setTimeout(function () { if (float.parentNode) float.parentNode.removeChild(float); }, 1400);
-    for (var s = 0; s < 9; s++) {
+
+    var sparkCount = big ? 18 : 9;
+    var sparkDist  = big ? 80 : 54;
+    for (var s = 0; s < sparkCount; s++) {
       (function (idx) {
         var spark = document.createElement('span');
         spark.className = 'spark';
-        var angle = (Math.PI * 2 * idx) / 9 + Math.random() * 0.5;
-        var dist = 46 + Math.random() * 54;
-        spark.style.left = x + 'px'; spark.style.top = y + 'px';
+        var angle = (Math.PI * 2 * idx) / sparkCount + Math.random() * 0.4;
+        var dist = 46 + Math.random() * sparkDist;
+        spark.style.left = x + 'px';
+        spark.style.top  = y + 'px';
         spark.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'px');
         spark.style.setProperty('--dy', (Math.sin(angle) * dist).toFixed(1) + 'px');
         document.body.appendChild(spark);
@@ -1143,5 +1186,124 @@
       }
       var source = extractWorkouts(data);
       if (!source) { Sound.error(); toast('No workout records found in that file.', 'error'); return; }
+
       var incoming = [];
-      for (var i =
+      for (var i = 0; i < source.length; i++) {
+        var w = normalizeWorkout(source[i]);
+        if (!w) { Sound.error(); toast('Backup contains a damaged record — import cancelled.', 'error'); return; }
+        incoming.push(w);
+      }
+      incoming.sort(function (a, b) { return a.timestamp - b.timestamp; });
+
+      confirmDialog({
+        title: 'Replace your portfolio?',
+        message: 'Your current ' + state.workouts.length + ' workout record' +
+                 (state.workouts.length === 1 ? '' : 's') + ' will be replaced by ' +
+                 incoming.length + ' from the backup. This cannot be undone.',
+        confirmLabel: 'Replace'
+      }).then(function (ok) {
+        if (!ok) { Sound.tick(); toast('Import cancelled.', 'error'); return; }
+        state.workouts = incoming;
+        lastRenderedCount = -1;
+        save(); render();
+        Sound.success();
+        toast('Portfolio restored · ' + incoming.length + ' workout' +
+              (incoming.length === 1 ? '' : 's'), 'success');
+      });
+    };
+    reader.readAsText(file);
+  }
+
+  /* ---------- reset ---------- */
+  function resetAll() {
+    if (!state.workouts.length) {
+      Sound.error(); toast('There is nothing to delete.', 'error'); return;
+    }
+    confirmDialog({
+      title: 'Delete all records?',
+      message: 'This erases all ' + state.workouts.length + ' workout records and your HK$' +
+               fmt(totalEarned()) + ' virtual balance from this browser.',
+      confirmLabel: 'Delete everything'
+    }).then(function (ok) {
+      if (!ok) return;
+      state.workouts = [];
+      lastRenderedCount = -1;
+      save(); render();
+      Sound.undo();
+      toast('All records deleted.', 'success');
+    });
+  }
+
+  /* ---------- wiring ---------- */
+  function bindEvents() {
+    $('addWorkout').addEventListener('click', addWorkout);
+    $('undoBtn').addEventListener('click', undoLast);
+    $('resetBtn').addEventListener('click', resetAll);
+    $('exportBtn').addEventListener('click', exportBackup);
+    $('exportBtn2').addEventListener('click', exportBackup);
+    $('importBtn').addEventListener('click', triggerImport);
+    $('importBtn2').addEventListener('click', triggerImport);
+
+    var soundBtn = $('soundBtn');
+    if (soundBtn) {
+      soundBtn.addEventListener('click', function () {
+        Sound.toggle();
+        updateSoundBtn();
+      });
+    }
+
+    $('importFile').addEventListener('change', function (e) {
+      handleFile(e.target.files && e.target.files[0]);
+    });
+
+    $('modalCancel').addEventListener('click', function () { closeModal(false); });
+    $('modalConfirm').addEventListener('click', function () { closeModal(true); });
+    $('modalOverlay').addEventListener('click', function (e) {
+      if (e.target === $('modalOverlay')) closeModal(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && $('modalOverlay').classList.contains('open')) closeModal(false);
+    });
+
+    var tabs = document.querySelectorAll('.range-tabs button');
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].addEventListener('click', function () {
+        for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+        this.classList.add('active');
+        chartRange = parseInt(this.getAttribute('data-range'), 10) || 0;
+        Sound.tick();
+        renderChart();
+      });
+    }
+
+    window.addEventListener('resize', function () {
+      clearTimeout(chartResizeTimer);
+      chartResizeTimer = setTimeout(renderChart, 140);
+    });
+  }
+
+  /* ---------- boot ---------- */
+  function init() {
+    load();
+    bindEvents();
+    updateSoundBtn();
+    render();
+  }
+  function boot() {
+    try { init(); }
+    catch (err) {
+      console.error('[portfolio] boot failed', err);
+      var box = $('bootError');
+      if (box) {
+        box.style.display = 'block';
+        box.textContent = 'Startup error: ' + err.message + ' — press F12 and check the Console tab.';
+      }
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>
